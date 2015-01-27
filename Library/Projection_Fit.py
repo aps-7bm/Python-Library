@@ -134,11 +134,17 @@ def fdribinski_projection(x_values, vert_scale, sigma, center, k, tol = 1e-6):
 def fdribinski_projection_k1(x_values, vert_scale, sigma, center):
     return fdribinski_projection(x_values, vert_scale, sigma, center, 1)
 
+def fdribinski_projection_k1_offset(x_values, vert_scale, sigma, center, offset):
+    return fdribinski_projection(x_values, vert_scale, sigma, center, 1) + offset
+
 def fdribinski_distribution_k1(radii,parameters):
     return fdribinski_distribution(radii,parameters[0],parameters[1],1)
 
 def fdribinski_projection_k2(x_values, vert_scale, sigma, center):
     return fdribinski_projection(x_values, vert_scale, sigma, center, 2)
+
+def fdribinski_projection_k2_offset(x_values, vert_scale, sigma, center,offset):
+    return fdribinski_projection(x_values, vert_scale, sigma, center, 2) + offset
 
 def fdribinski_distribution_k2(radii,parameters):
     return fdribinski_distribution(radii,parameters[0],parameters[1],2)
@@ -146,8 +152,17 @@ def fdribinski_distribution_k2(radii,parameters):
 def fdribinski_projection_k3(x_values, vert_scale, sigma, center):
     return fdribinski_projection(x_values, vert_scale, sigma, center, 3)
 
+def fdribinski_projection_k3_offset(x_values, vert_scale, sigma, center,offset):
+    return fdribinski_projection(x_values, vert_scale, sigma, center, 3) + offset
+
+def fdribinski_distribution_k3(radii,parameters):
+    return fdribinski_distribution(radii,parameters[0],parameters[1],3)
+
 def fdribinski_projection_k4(x_values, vert_scale, sigma, center):
     return fdribinski_projection(x_values, vert_scale, sigma, center, 4)
+
+def fdribinski_projection_k4_offset(x_values, vert_scale, sigma, center,offset):
+    return fdribinski_projection(x_values, vert_scale, sigma, center, 4) + offset
 
 def fdribinski_distribution_k4(radii,parameters):
     return fdribinski_distribution(radii,parameters[0],parameters[1],4)
@@ -157,7 +172,6 @@ def fdribinski_projection_k5(x_values, vert_scale, sigma, center):
 
 def fdribinski_distribution_k5(radii,parameters):
     return fdribinski_distribution(radii,parameters[0],parameters[1],5)
-
 def fdribinski_k5_gaussian_sum(x_values, vert_scale, sigma, center, gauss_area, gauss_sigma):
     return (fdribinski_projection(x_values, vert_scale, sigma, center, 5) +
             fgauss_no_offset(x_values, gauss_area, gauss_sigma, center)) 
