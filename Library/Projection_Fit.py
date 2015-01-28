@@ -97,6 +97,12 @@ def fellipse_fit_no_offset(x_values, area, radius, center):
     output[mask] = area * 2.0 / (radius * np.pi) * np.sqrt(1 - ((x_values[mask] - center)/radius)**2)
     return output
 
+def fdouble_ellipse_fit_no_offset(x_values,area1,radius1,center,area2,radius2):
+    '''Computes the top half of two overlapping ellipses, the curves resulting from
+    the projection of two circles of constant density.
+    '''
+    return fellipse_fit_no_offset(x_values,area1,radius1,center) + fellipse_fit_no_offset(area2,radius2,center)
+
 def fellipse_fit_distribution(radii,parameters):
     '''Computes the density distribution at input radii from ellipse fit.
     Just a constant density distribution.
@@ -105,6 +111,12 @@ def fellipse_fit_distribution(radii,parameters):
     mask = radii < parameters[1]
     output[mask] = parameters[0]/(np.pi * parameters[1]**2)
     return output
+
+def fdouble_ellipse_fit_distribution(radii,parameters):
+    '''Computes the density distribution at input radii from double ellipse fit.
+    Just two constant density distributions.
+    '''
+    return fellipse_fit_distribution(radii,parameters[:3]) + fellipse_fit_distribution(radii,(parameters[3],parameters[4],parameters[2]))
 
 def fdribinski_distribution(radii, vertical_scale, sigma, k):
     '''Computes the distribution curve from Dribinsk, et al., RSI, v. 73, #7
