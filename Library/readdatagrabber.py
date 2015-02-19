@@ -105,7 +105,7 @@ class DataGrabberChannel():
         data_dtype = np.dtype('byte')
         if endian=="little":
             dtype_string = "<"+self.dtype_dict[self.channel_header[data_type_key]]
-            print dtype_string
+            #print dtype_string
             data_dtype = np.dtype(dtype_string)
         else:
             data_dtype = np.dtype(">"+self.dtype_dict[self.channel_header[data_type_key]])
