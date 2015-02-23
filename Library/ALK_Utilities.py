@@ -7,11 +7,13 @@ Started: May 5, 2014
 Changes:
 July 31, 2014: Fix bug in fwrite_HDF_dataset for attribute writing.
 November 16, 2014: Fix bug that used wrong number of digits for filename lists.
+February 22, 2015: Add function for Butterworth filter from AFRL 2012-3 processing.
 '''
 import os
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.signal
 
 def fwrite_HDF_dataset(hdf_group,name,input_data,attributes=None,save_old_attrs=False,return_dset=False):
     '''Writes a dataset to the input HDF5 group.  Checks if the dataset already exists,
@@ -170,6 +172,26 @@ def fplot_HDF_trace(file_path,file_name,plot_var,x_var,norms=None,
                 plt.ylim(y_lims)
         plt.show()
         return
+    
+
+def ffilter_signal(data_array,delta_t,filter_cutoff=100,order=4):
+    """Function to filter a signal at a requested frequency and order.
+    Uses the builtin functions from scipy for a Butterworth filter.
+    Inputs:
+    data_array: signal to be processed.  Assumed to be acquired at fixed delta_t
+    delta_t: time step between data points
+    filter_cutoff: cutoff frequency of filter in Hz.
+    order: order of the Butterworth filter.
+    
+    Output:
+    filtered array, with same length as the input data_array
+    """
+    #Compute parameters to design filter
+    nyquist = 1.0 / 2.0 / float(delta_t)
+    cutoff_norm = filter_cutoff / nyquist
+    print "Normalized cutoff frequency = ", cutoff_norm
+    (b,a) = scipy.signal.butter(order,cutoff_norm)
+    return scipy.signal.filtfilt(b,a,data_array)
             
 if __name__ == '__main__':
     directory = fcorrect_path_start()+'SprayData/Cycle_2014_2/AFRL_Edwards/'  
