@@ -11,6 +11,7 @@ May 7, 2014: Minor changes to HDF file handling (using context).
 May 7, 2014: Change meta data reading functions so they always give a name.  Sim;lify other code based on this.
 May 7, 2014: Save only the positioner and detector arrays up to current point.
 June 18, 2014: Minor change to check the existence of the input file.
+March 5, 2015: Add function frun_append to append MDA file data to an existing HDF file.
 """
 #
 #Imports
@@ -310,6 +311,32 @@ def frun_main(input_file="7bmb1_0933.mda",directory="/data/Data/SprayData/Cycle_
     try:
         with h5py.File(directory+output_filename,'w') as output_hdf:
             data = fstart_unpacking(input_file,directory)
+            extra_PV_position = fread_file_header(data,output_hdf)
+            fread_scan(data,output_hdf)
+            data.set_position(extra_PV_position)
+            if extra_PV_position:
+                fread_extra_PVs(data,output_hdf)
+    except IOError:
+        print "IOError: Output file could not be opened."
+        return
+    except EOFError:
+        print "Unexpectedly reached end of file.  File may be damaged."
+        
+def frun_append(input_MDA = '7bmb1_0260.mda',MDA_directory = '/data/Data/SprayData/Cycle_2015_1/Spark/MDA_Files/',
+                output_HDF = 'Scan_260.hdf5',HDF_directory = '/data/Data/SprayData/Cycle_2015_1/Radiography/',
+                mca_saving_flag = True):
+    '''Parses data from the MDA file, adding datasets to an existing HDF5 file.
+    '''
+     #Parse the input file into the main part of the file name and the extension.
+    global mca_saving
+    mca_saving = mca_saving_flag
+    #Check whether the file exists
+    if not os.path.isfile(MDA_directory+input_MDA):
+        print "File " + input_MDA + " cannot be opened.  Exiting."
+        return
+    try:
+        with h5py.File(HDF_directory+output_HDF,'r+') as output_hdf:
+            data = fstart_unpacking(input_MDA,MDA_directory)
             extra_PV_position = fread_file_header(data,output_hdf)
             fread_scan(data,output_hdf)
             data.set_position(extra_PV_position)
