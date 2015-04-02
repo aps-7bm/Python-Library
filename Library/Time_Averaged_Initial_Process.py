@@ -231,6 +231,8 @@ def fanalyze_fluorescence(path,file_nums,name_dict,
     variables, the values being the existing names.
     '''
     #Make a list of filenames
+    if not path:
+        path = file_path
     filename_list = ALK.fcreate_filename_list(file_nums, filename_prefix,
                                               filename_suffix, digits, path, check_exist=True)
     #Loop through files
@@ -270,6 +272,8 @@ def frun_radiography_only(path,file_nums,ref_file_nums=None,filename_prefix=pref
     Normalize the radiography signal.
     '''
     #Convert to HDF5.  Do both regular files and dark files
+    if not path:
+        path = file_path
     print "Converting to HDF5"
     fconvert_files_to_hdf5(path,file_nums+dark_nums,filename_prefix,filename_suffix_MDA,
                     digits)
