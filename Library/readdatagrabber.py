@@ -14,11 +14,12 @@ useful ideas for this code.
 
 Edits:
 May 5, 2014: Add check that DataGrabber file exists.
-
+February 24, 2015: Add function to display an excerpt of a channel.
 """
 
 import numpy as np
 import os
+import matplotlib.pyplot as plt
 
 #Dictionary for converting datatype to number of bytes
 bytes_per_point = {"byte":1, "short":2, "int":4, "float":4, "long":8, "double":8}
@@ -71,7 +72,7 @@ def fread_headers(filename,record_length_key="RecordLength",
                     current_channel.channel_header = fparse_header_line(line[:-2])
                     #Add a file pointer to the dictionary.
                     current_channel.channel_header["FPointer"] = dg_file.tell()
-                    print dg_file.tell()
+#                     print dg_file.tell()
                     #Figure out how many bytes to skip.  
                     num_bytes_per_point = bytes_per_point[current_channel.channel_header[data_type_key]]
                     num_points = int(current_channel.channel_header[record_length_key])
@@ -136,4 +137,29 @@ class DataGrabberCoordinate():
 
         for channel in self.channels:
             channel.fread_data()
+    
+    def fdisplay_excerpt(self,descriptor="PINDiode",end=False,num_points=1e4):
+        """Module to display first part of a channel.
+        Inputs
+        descriptor: UserDescription for the desired channel.
+        end: if True, display last points, otherwise display beginning of trace
+        num_points: number of points to display
+        """
+        #Pick the first data point, get channel with descriptor in it
+        for channel in self.channels:
+            if channel.channel_header["UserDescription"]==descriptor: 
+                channel.fread_data()
+                #Only plot first 10000 pointscoord_object.channels[descriptor][
+                if channel.data.size>num_points:
+                    if end:
+                        x = np.arange(len(channel.data))
+                        plt.plot(x[-num_points:],channel.data[-num_points:],'b.-')
+                    else:
+                        plt.plot(channel.data[:num_points],'b.-')
+                else:
+                    plt.plot(channel.data,'b.-')
+                plt.show()
+                #Clear out the data to save memory
+                channel.data = None
+                return
     
