@@ -214,6 +214,16 @@ def fdistribution_dribinski_k1_gaussian_sum(radii,parameters):
     '''
     return fdribinski_distribution(radii,parameters[0],parameters[1],1) + fgauss_no_offset_unproject(radii, (parameters[3],parameters[4]))
 
+def fdribinski_k3_gaussian_sum(x_values, vert_scale, sigma, center, gauss_area, gauss_sigma):
+    return (fdribinski_projection(x_values, vert_scale, sigma, center, 3) +
+            fgauss_no_offset(x_values, gauss_area, gauss_sigma, center)) 
+
+def fdistribution_dribinski_k3_gaussian_sum(radii,parameters):
+    '''Computes 2D distribution at given radii from a fit of the sum of a 
+    Gaussian and a Dribinski k=5 curve.
+    '''
+    return fdribinski_distribution(radii,parameters[0],parameters[1],3) + fgauss_no_offset_unproject(radii, (parameters[3],parameters[4]))
+
 def fdribinski_k2_k3_sum(x_values, vert_scale2, sigma2, center, vert_scale3, sigma3):
     return (fdribinski_projection(x_values, vert_scale2, sigma2, center, 2) +
             fdribinski_projection(x_values, vert_scale2, sigma2, center, 3))
