@@ -39,6 +39,17 @@ def fgauss_vertical_offset(x_values, area, sigma, center, offset):
     '''
     return area/(sigma *np.sqrt(2*np.pi))*np.exp(-(x_values-center)**2/(2.0*sigma**2)) + offset
 
+def fgauss_sloped_offset(x_values,area,sigma,center,offset,slope):
+    '''Computes a Gaussian curve, with a vertical offset and sloped baseline.
+    Parameters list:
+    area = Area under curve
+    sigma = sigma of Gaussian
+    center = center offset
+    offset = vertical offset at x = 0
+    slope = slope of the baseline
+    '''
+    return area/(sigma *np.sqrt(2*np.pi))*np.exp(-(x_values-center)**2/(2.0*sigma**2)) + offset + x_values * slope
+
 def fdoublegauss_no_offset(x_values, area1, sigma1, center, area2, sigma2):
     '''Computes the sum of two Gaussian curves, with no vertical offset
     and the same center point.
@@ -101,7 +112,7 @@ def fdouble_ellipse_fit_no_offset(x_values,area1,radius1,center,area2,radius2):
     '''Computes the top half of two overlapping ellipses, the curves resulting from
     the projection of two circles of constant density.
     '''
-    return fellipse_fit_no_offset(x_values,area1,radius1,center) + fellipse_fit_no_offset(area2,radius2,center)
+    return fellipse_fit_no_offset(x_values,area1,radius1,center) + fellipse_fit_no_offset(x_values,area2,radius2,center)
 
 def fellipse_fit_distribution(radii,parameters):
     '''Computes the density distribution at input radii from ellipse fit.
