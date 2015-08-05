@@ -297,7 +297,7 @@ def fread_extra_PVs(data,group):
             extra_PV_group.attrs[prefix + "_Value"] = pv_value
     return
     
-def frun_main(input_file="7bmb1_0933.mda",directory="/data/Data/SprayData/Cycle_2012_3/Time_Averaged_ISU/",mca_saving_flag=True):
+def frun_main(input_file="7bmb1_0933.mda",directory="/data/Data/SprayData/Cycle_2012_3/Time_Averaged_ISU/",mca_saving_flag=False):
     '''Function that tests the working of the code.
     '''
     #Parse the input file into the main part of the file name and the extension.
@@ -358,9 +358,9 @@ if __name__ =="__main__":
     elif len(sys.argv) == 2:
         if sys.argv[1] == "-h":
             print """Program to convert sscan MDA files to HDF5. /n
-                If one argument is given, assume it is a path to an MDA file. /n
-                The HDF5 file will be placed in the same directory.
-                Alternatively, give file and a directory in which to place HDF file.
+                If one argument is given, assume it is the name of an MDA file in the current /n
+                directory.  The HDF5 file will be placed in the same directory.
+                Alternatively, give directory for MDA file and its name.
                 """
         else:
             frun_main(sys.argv[1],os.getcwd()+'/')
