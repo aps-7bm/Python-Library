@@ -8,6 +8,7 @@ Changes:
 July 31, 2014: Fix bug in fwrite_HDF_dataset for attribute writing.
 November 16, 2014: Fix bug that used wrong number of digits for filename lists.
 February 22, 2015: Add function for Butterworth filter from AFRL 2012-3 processing.
+April 20, 2015: Add ability in fcreate_filename to handle a non-integer entry for file_num
 '''
 import os
 import h5py
@@ -41,8 +42,11 @@ def fcreate_filename(file_num,filename_prefix='7bmb1_',filename_suffix='.mda',
                     digits=4):
     '''Make a filename with a number using a fixed number of digits.
     '''
-    format_string = '{0:0'+str(digits)+'d}'
-    return filename_prefix+format_string.format(file_num)+filename_suffix
+    if isinstance(file_num,(int,long)):
+        format_string = '{0:0'+str(digits)+'d}'
+        return filename_prefix+format_string.format(file_num)+filename_suffix
+    else:
+        return filename_prefix+str(file_num)+filename_suffix
 
 def fcreate_filename_list(file_nums,filename_prefix='7bmb1_',filename_suffix='.mda',
                     digits=4, path="/data/Data/SprayData/Cycle_2014_1/ISU_Point/",
@@ -55,7 +59,7 @@ def fcreate_filename_list(file_nums,filename_prefix='7bmb1_',filename_suffix='.m
     #Loop through the input string numbers, converting first to int, then to
     #correct number of digits as a string.
     for i_str in file_nums:
-        filename_list.append(path+fcreate_filename(int(i_str),filename_prefix,filename_suffix,digits))
+        filename_list.append(path+fcreate_filename(i_str,filename_prefix,filename_suffix,digits))
     #If checking for existence was requested, do so
     if check_exist:
         filename_list[:] = [name for name in filename_list if os.path.isfile(name)]
