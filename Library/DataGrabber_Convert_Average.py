@@ -6,7 +6,7 @@ Started: August 25, 2015
 '''
 import numpy as np
 import readdatagrabber as rdg
-import ArrayBin
+import ArrayBin_Cython as ArrayBin
 import h5py
 import ALK_Utilities as ALK
 import multiprocessing
@@ -200,6 +200,8 @@ def fread_bin_signal_by_time(coord_object,delta_t,descriptor="PINDiode"):
             channel.fread_data_volts()
             #Find the time step for the data
             data_delta_t = float(fread_meta_data(coord_object,descriptor,"TimeStep"))
+            print data_delta_t
+            print delta_t
             #Find the number of time points for the new data
             binned_output = ArrayBin.fbin_array(channel.data,delta_t/data_delta_t)
             #Delete the array data from the channel to avoid maxing out memory
@@ -267,14 +269,15 @@ def fconvert_to_hdf5_multiprocess(file_num,delta_t=3.6825e-6,channel_names=['PIN
         for i,loc_info in enumerate(location_info_list):
             print "Working on position # " + str(i) + ", position " + str(loc_info.location_values)
             for (replicate_num,coordinate) in enumerate(loc_info.header_coord_objects):
+                print "Replicated = " + str(replicated)
                 fprocess_coordinate_bin_by_time(coordinate,write_file,channel_names,delta_t,numeric_keys,
-                            string_keys,i,replicate_num)
+                            string_keys,i,replicate_num,replicated)
                 
                 #Clear out entries in headers so we don't overload memory
                 coordinate = ""
             loc_info = ""
 
-def fprocess_coordinate_bin_by_time(coordinate,hdf_group,channel_names,delta_t,numeric_keys,string_keys,location_num,replicate):
+def fprocess_coordinate_bin_by_time(coordinate,hdf_group,channel_names,delta_t,numeric_keys,string_keys,location_num,replicate,replicated):
     '''Processes one coordinate of the DataGrabber file.
     '''
     print "Replicate # " + str(replicate)
@@ -300,7 +303,7 @@ def fprocess_coordinate_bin_by_time(coordinate,hdf_group,channel_names,delta_t,n
             hdf_group[chan_name][location_num,:max_length] = channel_data[:max_length]
             hdf_group['Final_Time_Step'][location_num] = delta_t
 
-def fbatch_conversion_multiprocess(file_nums,norm_by_I0=True):
+def fbatch_conversion_multiprocess(file_nums,delta_t):
     '''Class to batch process a large number of DataGrabber files.
     Should work with strings or numbers given in file_nums list.
     '''
@@ -312,7 +315,7 @@ def fbatch_conversion_multiprocess(file_nums,norm_by_I0=True):
         process.start()
     #Set up multiprocessing JoinableQueue
     for file_num in file_nums:
-        tasks.put(MP_Task(file_num,norm_by_I0))
+        tasks.put(MP_Task(file_num,delta_t))
     #Add poison pills at the end of the queue so MP_Process objects know when to stop.
     for i in range(num_processors):
         tasks.put(None)
@@ -322,12 +325,13 @@ def fbatch_conversion_multiprocess(file_nums,norm_by_I0=True):
 class MP_Task():
     '''Object to allow for file conversion to occur in a JoinableQueue
     '''
-    def __init__(self,file_num,norm_by_I0):
+    def __init__(self,file_num,delta_t):
         self.file_num = file_num
-        self.norm_by_I0 = norm_by_I0
+        self.delta_t = delta_t
     
     def __call__(self):
-        fconvert_to_hdf5_multiprocess(self.file_num,self.norm_by_I0)
+        fconvert_to_hdf5_multiprocess(self.file_num,self.delta_t)
+    
 
 class MP_Process(multiprocessing.Process):
     def __init__(self,task_queue):
