@@ -9,6 +9,7 @@ July 31, 2014: Fix bug in fwrite_HDF_dataset for attribute writing.
 November 16, 2014: Fix bug that used wrong number of digits for filename lists.
 February 22, 2015: Add function for Butterworth filter from AFRL 2012-3 processing.
 April 20, 2015: Add ability in fcreate_filename to handle a non-integer entry for file_num
+August 18, 2015: Move filtering to a new Signal_Processing module
 '''
 import os
 import h5py
@@ -176,27 +177,26 @@ def fplot_HDF_trace(file_path,file_name,plot_var,x_var,norms=None,
                 plt.ylim(y_lims)
         plt.show()
         return
-    
 
-def ffilter_signal(data_array,delta_t,filter_cutoff=100,order=4):
-    """Function to filter a signal at a requested frequency and order.
-    Uses the builtin functions from scipy for a Butterworth filter.
-    Inputs:
-    data_array: signal to be processed.  Assumed to be acquired at fixed delta_t
-    delta_t: time step between data points
-    filter_cutoff: cutoff frequency of filter in Hz.
-    order: order of the Butterworth filter.
-    
-    Output:
-    filtered array, with same length as the input data_array
-    """
-    #Compute parameters to design filter
-    nyquist = 1.0 / 2.0 / float(delta_t)
-    cutoff_norm = filter_cutoff / nyquist
-    print "Normalized cutoff frequency = ", cutoff_norm
-    (b,a) = scipy.signal.butter(order,cutoff_norm)
-    return scipy.signal.filtfilt(b,a,data_array)
+def ftest_numeric(string_input):
+    '''Tests whether a string input can be cast as a float.
+    '''
+    try:
+        float(string_input)
+        return True
+    except ValueError:
+        return False
             
+def frename_hdf_group_items(hdf_group,substitutions_dict):
+    '''Renames items in an HDF group using a dictionary for substitutions.
+    Saves the old name as an attribute.
+    '''
+    for key in hdf_group.keys():
+        if key in substitutions_dict:
+            hdf_group[substitutions_dict[key]] = hdf_group[key]
+            hdf_group[substitutions_dict[key]].attrs['Original_Name'] = key
+            del hdf_group[key]      
+                
 if __name__ == '__main__':
     directory = fcorrect_path_start()+'SprayData/Cycle_2014_2/AFRL_Edwards/'  
     old_name = '7bmb1_1052.hdf5'   
@@ -204,7 +204,7 @@ if __name__ == '__main__':
     fplot_HDF_trace(directory,old_name,
                      ['Kr_Kalpha','Radiography'],
                      ['7bmb1:m26.VAL'],
-                     [1000.0,1.0],y_lims=[0,0.01])        
-                
+                     [1000.0,1.0],y_lims=[0,0.01])  
     
+
         
