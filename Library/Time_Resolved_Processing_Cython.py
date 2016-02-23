@@ -132,35 +132,16 @@ def fread_bin_signal_by_bunch(coord_object,descriptor="PINDiode"):
                 return None,None
             #Find the peak positions
             delta_t = float(fread_meta_data(coord_object,descriptor,"TimeStep"))
-            #Use the new Cython version of this
-            peak_positions = arc.ffind_breakpoints_peaked(channel.data,int(pulse_time / delta_t))
-            #Define numpy array to hold final data
-            output_data = np.zeros(peak_positions.size)
-            #Compute the actual average pulse duration and add to coordinate header
-            peak_regression = scipy.stats.linregress(np.arange(peak_positions.size),peak_positions)
-#             print peak_positions[0]
-#             print peak_regression
-            actual_pulse_duration = peak_regression[0]
-            pulse_time = actual_pulse_duration * delta_t
-            print "Pulse duration = ",pulse_time, " s."
+            #Find the integration parameters
+            pulse_duration_points,start_point = ffind_integration_parameters(channel.data,pulse_time,delta_t)
+            #Write pulse duration to the channel
+            pulse_time = pulse_duration_points * delta_t
             coord_object.coordinate_header["Pulse_Duration"] = pulse_time
-            #Find the actual number of points before the peak that we should use
-            points_before_peak = ffind_points_before_peak(channel.data,peak_positions,actual_pulse_duration)
-#             #Make array of the breakpoints for integration between points, including one extra for end of array
-#             breakpoints = np.linspace(peak_positions[0],peak_positions[-1] + actual_pulse_duration,len(peak_positions)+1) - points_before_peak
-#             print "Mean of raw data = " , np.mean(channel.data[peak_positions[0]:peak_positions[-1]])
-#             for counter in range(len(peak_positions)):
-#                 fintegrate_peak(channel.data,output_data,counter,breakpoints)
-#                 #Print out a message every 100000 peaks so one can see that it's working.
-# #                 if not(counter%5000):
-            #Bin the array, starting at the minimum before the first peak.  Use linear fit to find first peak location
-            start_point = int(np.rint(peak_regression[1] - points_before_peak))
-            if start_point < 0:
-                start_point = int(np.rint(peak_regression[1] + peak_regression[0] - points_before_peak))
-            output_data = arc.fbin_array(channel.data[start_point:],actual_pulse_duration)
-            print "Processed ", len(peak_positions), " peaks for channel " + descriptor
+            #Perform integration with Cython code
+            output_data = arc.fbin_array(channel.data[start_point:],pulse_duration_points)
+            print "Processed ", len(output_data), " peaks for channel " + descriptor
             #Divide the output data by the pulse duration to get an average voltage back
-            output_data = output_data / actual_pulse_duration
+            output_data = output_data / pulse_duration_points
             print np.mean(output_data,dtype=np.float64)
             #Attempt to remove the impact of bunch charge variations.
             bunch_removed_output = fremove_bunch_charge_variations(output_data)
@@ -169,6 +150,30 @@ def fread_bin_signal_by_bunch(coord_object,descriptor="PINDiode"):
             channel.data = None
             return bunch_removed_output,pulse_time
 
+def ffind_integration_parameters(input_data,pulse_time,delta_t):
+    '''Find the correct start point and number of points per bin to integrate a
+    peaked signal whose repetition rate does not match the delta_t of the
+    input data.
+    Inputs:
+    input_data: peaked signal to be integrated
+    pulse_time: estimate of the time between pulses
+    delta_t: time period for each measurement point
+    Outputs:
+    actual_pulse_time: pulse time derived from data, assuming delta_t is right
+    start_point: the point at which to start integration
+    '''
+    #Use Cython code to find the peaks
+    peak_positions = arc.ffind_breakpoints_peaked(input_data,int(pulse_time / delta_t))
+    #Compute the actual average pulse duration and add to coordinate header
+    actual_pulse_duration,first_peak = scipy.stats.linregress(np.arange(peak_positions.size),peak_positions)[:2]
+    #Find the actual number of points before the peak that we should use
+    points_before_peak = ffind_points_before_peak(input_data,peak_positions,actual_pulse_duration)
+    #Give the start point for the integration
+    if first_peak > points_before_peak:
+        start_point = int(np.rint(first_peak - points_before_peak))
+    else:
+        start_point = int(np.rint(first_peak + actual_pulse_duration - points_before_peak))
+    return actual_pulse_duration * delta_t,start_point
 
 def ffind_points_before_peak(data_array,peak_positions,pulse_duration):
     '''Figure out how many points before the peak we should go to perform integration.
