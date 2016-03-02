@@ -156,9 +156,7 @@ def fcompute_fluorescence(raw_fluorescence, slow_events, fast_events, radiograph
         ext_lengths = -np.log(radiography)
     #
     #Form correction for nonuniform intensity through sample.  Avoid points with very low absorption
-    intensity_correction = np.ones_like(ext_lengths)
-    is_sig = ext_lengths > 1e-5
-    intensity_correction[is_sig] = (1-np.exp(-ext_lengths[is_sig]))/ext_lengths[is_sig]
+    intensity_correction = fcorrect_incident_intensity_colocated(ext_lengths)
     #
     #Add this correction to the fluorescence
     final_fluorescence /= intensity_correction
@@ -168,3 +166,13 @@ def fcompute_fluorescence(raw_fluorescence, slow_events, fast_events, radiograph
         final_fluorescence = final_fluorescence - np.min(final_fluorescence)
     #
     return final_fluorescence
+
+def fcorrect_incident_intensity_colocated(ext_lengths):
+    '''Formulate correction to the fluorescence due to the attenuation of the 
+    incident beam in the sample.  Assume fluorescence and radiography are 
+    co-located.
+    '''
+    intensity_correction = np.ones_like(ext_lengths)
+    is_sig = ext_lengths > 1e-5
+    intensity_correction[is_sig] = (1-np.exp(-ext_lengths[is_sig]))/ext_lengths[is_sig]
+    return intensity_correction
