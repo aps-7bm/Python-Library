@@ -1,5 +1,7 @@
-'''Module to compute the signal trapping corrections for the Taitech 2014-2
-data.
+'''Module to compute the signal trapping corrections.
+This code is largely a wrapper for Signal_Trapping_Fitted, with a few other
+convenience functions for fitting the distribution, scaling the absorption,
+and writing the data to file.
 
 Strategy:
 1.  Use the calibrated amounts of liquid and gas to partition radiography into
