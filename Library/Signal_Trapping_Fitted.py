@@ -77,6 +77,9 @@ def fcalculate_signal_trapping_projection(x_vals,z_vals,density_2D,data_2D,detec
     signal_trapping_array = fcalculate_signal_trapping_2D(x_vals,z_vals,density_2D,detector_negative)
     #Convert this to transmission at each point
     signal_trapping_array = np.exp(-signal_trapping_array)
+#     plt.figure()
+#     plt.imshow(signal_trapping_array)
+#     plt.colorbar()
     #Compute weighted average transmission.  Handle case where data_2D integral might be zero by making trans=1
     denominator = np.ones_like(x_vals)
     mask =  (np.abs(scipy.integrate.simps(data_2D,z_vals,axis=0)) > tol)
@@ -119,15 +122,7 @@ def fcompute_signal_trapping(x_lims, z_lims,num_x,num_z,rad_fit_function,rad_fit
 def ftest_code(abs_peak = 0.04,sigma=.5,fluor_peak=10000000,fluor_sigma=0.05):
     '''Code to test whether I am calculating things correctly.
     '''
-#    x_vals, z_vals, array2D = fcreate_absorption_array([-3,3],[-3,3],1201,1201)
-#    density_array = fpopulate_fitted_array(x_vals, z_vals, array2D, 0, 
-#                                           pf.fgauss_no_offset_unproject,[abs_peak*sigma*np.sqrt(2.0*np.pi),sigma])
-#    density_array = fpopulate_fitted_array(x_vals, z_vals, array2D, 0, 
-#                                           pf.fgauss_no_offset_unproject,[abs_peak*sigma*np.sqrt(2.0*np.pi),sigma])
-#    data_array = fpopulate_fitted_array(x_vals, z_vals, array2D, 0, pf.fgauss_no_offset_unproject,[fluor_peak,fluor_sigma]) 
     plt.title('Signal Trapping')
-#    signal_trapping_array = np.exp(-fcalculate_signal_trapping_2D(x_vals,z_vals,density_array))
-#    x,trap = fcalculate_signal_trapping_projection(x_vals,z_vals,density_array,data_array)
     x,trap,signal_trapping_array = fcompute_signal_trapping([-3,3],[-3,3],1201,1201,
                              pf.fgauss_no_offset_unproject,[abs_peak*sigma*np.sqrt(2.0*np.pi),sigma],
                              pf.fgauss_no_offset_unproject,[fluor_peak,fluor_sigma])   
@@ -147,24 +142,5 @@ def fdummy_function(r,params):
 
 #Test code
 if __name__ == '__main__':
-    '''#Create 2D array
-    x_vals, z_vals, array2D = fcreate_absorption_array([-3,3],[-3,3],1201,1201)
-    density_array = fpopulate_fitted_array(x_vals, z_vals, array2D, 0, pf.fgauss_no_offset_unproject,[0.04*0.5*np.sqrt(2.0*np.pi),0.5])
-    data_array = fpopulate_fitted_array(x_vals, z_vals, array2D, 0, pf.fgauss_no_offset_unproject,[100,0.05])
-#    plt.imshow(density_array)
-#    plt.colorbar()
-#    plt.figure(2)
-    plt.title('Signal Trapping')
-    signal_trapping_array = np.exp(-fcalculate_signal_trapping_2D(x_vals,z_vals,density_array))
-    print signal_trapping_array.shape
-#    plt.imshow(signal_trapping_array)
-#    plt.colorbar()
-#    plt.figure(3)
-    x,trap = fcalculate_signal_trapping_projection(x_vals,z_vals,density_array,data_array)
-    plt.plot(x,trap)
-    #Cross-check
-    plt.plot(x,1.0-scipy.stats.norm.cdf(x,0,0.5)*0.04,'g')
-    plt.xlim(-1,1)
-    plt.show()'''
     ftest_code()
         
