@@ -62,8 +62,6 @@ def fdoublegauss_no_offset(x_values, area1, sigma1, center, area2, sigma2):
     '''
     return (fgauss_no_offset(x_values, area1, sigma1, center) + 
             fgauss_no_offset(x_values, area2, sigma2, center))
-#    return (area1/(sigma1 *np.sqrt(2*np.pi))*np.exp(-(x_values-center)**2/(2.0*sigma1**2)) +
-#            area2/(sigma2 *np.sqrt(2*np.pi))*np.exp(-(x_values-center)**2/(2.0*sigma2**2)))
 
 def fdoublegauss_no_offset_unproject(radii, parameters):
     '''Compute the distribution, assuming axisymmetry, from a Gaussian
@@ -113,6 +111,12 @@ def fdouble_ellipse_fit_no_offset(x_values,area1,radius1,center,area2,radius2):
     the projection of two circles of constant density.
     '''
     return fellipse_fit_no_offset(x_values,area1,radius1,center) + fellipse_fit_no_offset(x_values,area2,radius2,center)
+
+def fdouble_ellipse_fit_center_offset(x_values,area1,radius1,center1,area2,radius2,center2):
+    '''Computes the top half of two overlapping ellipses, the curves resulting from
+    the projection of two circles of constant density.
+    '''
+    return fellipse_fit_no_offset(x_values,area1,radius1,center1) + fellipse_fit_no_offset(x_values,area2,radius2,center2)
 
 def fellipse_fit_distribution(radii,parameters):
     '''Computes the density distribution at input radii from ellipse fit.
