@@ -15,7 +15,7 @@ import os
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.signal
+import scipy.linalg
 
 def fwrite_HDF_dataset(hdf_group,name,input_data,attributes=None,save_old_attrs=False,return_dset=False):
     '''Writes a dataset to the input HDF5 group.  Checks if the dataset already exists,
@@ -196,15 +196,32 @@ def frename_hdf_group_items(hdf_group,substitutions_dict):
             hdf_group[substitutions_dict[key]] = hdf_group[key]
             hdf_group[substitutions_dict[key]].attrs['Original_Name'] = key
             del hdf_group[key]      
+
+def ffind_parabola_peak(x_vals,y_vals):
+    '''Finds the peak value of a parabola given three x and y values.
+    '''
+    #Make sure the lengths of the x_vals and y_vals arrays are each three
+    if not len(x_vals) == 3 and len(y_vals) == 3:
+        print "Method ffind_parabola_peak requires exactly three x and y values."
+        return None
+    #Make up the matrices for solving the system
+    A = np.zeros((3,3))
+    y = np.zeros(3)
+    for i in range(3):
+        A[i,:] = np.array([x_vals[i]**2,x_vals[i],1])
+        y[i] = y_vals[i]
+    coeff = scipy.linalg.solve(A,y)
+    return -coeff[1]/2.0/coeff[0]
                 
 if __name__ == '__main__':
-    directory = fcorrect_path_start()+'SprayData/Cycle_2014_2/AFRL_Edwards/'  
-    old_name = '7bmb1_1052.hdf5'   
-#    fcompact_HDF_file(directory,old_name)        
-    fplot_HDF_trace(directory,old_name,
-                     ['Kr_Kalpha','Radiography'],
-                     ['7bmb1:m26.VAL'],
-                     [1000.0,1.0],y_lims=[0,0.01])  
+#     directory = fcorrect_path_start()+'SprayData/Cycle_2014_2/AFRL_Edwards/'  
+#     old_name = '7bmb1_1052.hdf5'   
+# #    fcompact_HDF_file(directory,old_name)        
+#     fplot_HDF_trace(directory,old_name,
+#                      ['Kr_Kalpha','Radiography'],
+#                      ['7bmb1:m26.VAL'],
+#                      [1000.0,1.0],y_lims=[0,0.01])  
+    print ffind_parabola_peak([-2.0,0,5.0],[26.0,4.0,54.0])
     
 
         
