@@ -161,8 +161,8 @@ def fread_scan(data,hdf_group):
                 else:
                     hdf_group.create_dataset(detector_names[i],data=np.zeros((current_point,len(detector_arrays[i]))))
                 #Add data, but only if j < current_point
-                if j < current_point and np.size(detector_arrays[i])==np.size(hdf_group[detector_names[i]][j,:]):
-                    hdf_group[detector_names[i]][j,:] = detector_arrays[i]
+                if j < current_point and np.size(detector_arrays[i])==np.size(hdf_group[detector_names[i]][j,...]):
+                    hdf_group[detector_names[i]][j,...] = detector_arrays[i]
     return
 
 def fread_MCA_scan(data):
