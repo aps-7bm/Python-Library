@@ -76,6 +76,7 @@ def fread_scan(data,hdf_group):
     if rank>1:
         for i in range(requested_num_points):
             lower_scans_pointers.append(data.unpack_int())
+        lower_scans_pointers = lower_scans_pointers[:current_point]
     #
     #Read through the info fields
     hdf_group.attrs["Scan Name"] = fparse_counted_string(data)
@@ -119,7 +120,8 @@ def fread_scan(data,hdf_group):
         #If there are no current points, don't write a dataset
         if current_point:
             hdf_group.create_dataset(positioner_meta[i]['Name'],data=positioner_array[:current_point])
-        positioner_values.append(positioner_array)
+        #Append positioner values, but only up to current point.  Others are just garbage.
+        positioner_values.append(positioner_array[:current_point])
         
     #Read in detector data and write to file
     for i in range(num_detectors):
@@ -140,7 +142,12 @@ def fread_scan(data,hdf_group):
                 name = positioner_meta[0]['Name'] + "=" + str(positioner_values[0][j])
             else:
                 name = "Rank_"+str(rank)+"_Point_"+str(j)
-            subgroup = hdf_group.create_group(name)
+            try:
+                subgroup = hdf_group.create_group(name)
+                print name
+            except ValueError:
+                print "Problem making group " + str(name) + " for lower scan #" + str(j)
+                raise ValueError 
             data.set_position(lower_scans_pointers[j])
             fread_scan(data,subgroup)
             #Remove the subgroup if 
@@ -358,9 +365,9 @@ if __name__ =="__main__":
     elif len(sys.argv) == 2:
         if sys.argv[1] == "-h":
             print """Program to convert sscan MDA files to HDF5. /n
-                If one argument is given, assume it is the name of an MDA file in the current /n
-                directory.  The HDF5 file will be placed in the same directory.
-                Alternatively, give directory for MDA file and its name.
+                If one argument is given, assume it is a path to an MDA file. /n
+                The HDF5 file will be placed in the same directory.
+                Alternatively, give file and a directory in which to place HDF file.
                 """
         else:
             frun_main(sys.argv[1],os.getcwd()+'/')
