@@ -6,6 +6,7 @@ numbers of points, fill the arrays with NAN to flag entries that aren't filled y
 Alan Kastengren, XSD, APS
 
 Started: October 20, 2014
+June 12, 2015: add functionality to sort by a given variable name.
 '''
 import h5py
 import numpy as np
@@ -21,7 +22,8 @@ def finitialize_new_hdf5(file_path,new_file_name):
 def fcombine_dataset(file_path,old_file_names,new_file,
                             retrieve_dataset_method,
                             old_dataset_name,
-                            new_dataset_name):
+                            new_dataset_name,
+                            ordering_name = None):
     '''Finds the values of the desired dataset and
     fills appropriate arrays in the new hdf5 file.
     Only works with 1D scan for each original HDF5 file.
@@ -33,19 +35,30 @@ def fcombine_dataset(file_path,old_file_names,new_file,
                                     find values of dataset.
     old_dataset_name: name of dataset in old files
     new_datset_name: name of dataset in combined file.
+    ordering_name: name to be used to place data into datasets in ascending order.
     '''
+    print new_file
+    print new_dataset_name
     #Make lists to hold the values of the dataset until we know the sizes.
     data_list = []
+    ordering_name_list = []
     #Loop through the old files, finding the positioner arrays.
     for fname in old_file_names:
         print fname
         old_file = h5py.File(fname,'r')
         data_list.append(retrieve_dataset_method(old_file,old_dataset_name))
+        #If we are ordering by a variable, make a list out of it.
+        if ordering_name:
+            ordering_name_list.append(np.mean(retrieve_dataset_method(old_file,ordering_name)))
+    #If an ordering_name is given, sort the data_list by these values
+    if ordering_name:
+        dummy, data_list = zip(*sorted(zip(ordering_name_list, data_list)))
     #Loop through these values, finding the max size from any individual data file
     max_length = 0
     for array in data_list:
         if len(array) > max_length:
             max_length = len(array)
+    print "Max length = " + str(max_length)
     #Initialize the dataset in the combined file
     new_file.create_dataset(new_dataset_name,data=np.NAN*np.ones((max_length,len(data_list))))
     #Fill the combined file
@@ -69,7 +82,7 @@ def fcontour_plot_dataset(file_path,hdf_file_name,x_variable,y_variable,z_variab
     #Open file
     hdf_file = h5py.File(file_path + hdf_file_name,'r')
     #Mask off any NAN entries is x; indicates scan wasn't as wide as widest scan
-    mask = np.logical_and(np.isfinite(hdf_file[x_variable]),hdf_file[x_variable][...]>0.5)
+    mask = np.isfinite(hdf_file[x_variable])
     #Make triangulation for Delauney triangulation plot
     triang = tri.Triangulation(hdf_file[x_variable][mask],
                                hdf_file[y_variable][mask])
@@ -83,21 +96,33 @@ def fcontour_plot_dataset(file_path,hdf_file_name,x_variable,y_variable,z_variab
     plt.ylabel(y_variable)
     cb = plt.colorbar()
     cb.ax.set_ylabel(z_variable)
+    plt.show()
 
-def fprocess_files(file_path,old_file_names,new_file_name,dataset_method_dict,names_dict):
-    '''Combine data files into one HDF5 file. 
+def fprocess_files(file_path,old_file_names,new_file_name,dataset_method_dict,names_dict,
+                   ordering_name=None):
+    '''Combine data files into one HDF5 file. Place in ascending order of variable ordering_name
     Variables
     file_path: path to all of the files
     old_file_names: list of names of the files to be combined.
     new_file_name: name for the combined file. 
     dataset_method_dict: dictionary in form dataset_name:retrieval_method
     names_dict: dictionary in form old_name:new:name
+    ordering_name: name of a variable to be used to order the files.
     '''
+    #If no dataset_method_dict is given, fill it in
+    if not dataset_method_dict:
+        dataset_method_dict = {}
+        for key in names_dict:
+            dataset_method_dict[key] = ftop_level_dataset
     #Initialize new HDF5 file
     new_file = finitialize_new_hdf5(file_path,new_file_name)
     #Loop through the datasets in the dictionaries
     for old_dataset in dataset_method_dict.keys():
+        print old_dataset
+        print dataset_method_dict[old_dataset]
         fcombine_dataset(file_path,old_file_names,new_file,
                             dataset_method_dict[old_dataset],
                             old_dataset,
-                            names_dict[old_dataset])
+                            names_dict[old_dataset],
+                            ordering_name)
+    new_file.close()

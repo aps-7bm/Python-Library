@@ -39,6 +39,8 @@ def fcompute_autospectrum(data,window_array,truncate=False,delta_t=1):
     data = data - np.mean(data[:new_size])
     print "Data SD = ", np.std(data[:new_size],ddof=1)
     print "Data mean = ", np.mean(data[:new_size])
+    if window_array == None:
+        window_array = fcompute_hanning_window(new_size)
     data = np.multiply(data[:new_size], window_array)
     print "Data SD = ", np.std(data[:new_size],ddof=1)
     #Give DFT: have to include delta_t to make this correct, per Bendat and Piersol
