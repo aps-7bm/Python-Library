@@ -44,9 +44,9 @@ def fscale_absorption(absorption_data,abs_coeff_ratio):
     return absorption_data * abs_coeff_ratio
 
 def fscale_transmission(transmission_data,abs_coeff_ratio):
-    '''Rescales the transmission using a given absorption coefficient ratio
+    '''Rescales transmission using a given absorption coefficient ratio
     Inputs:
-    transmission_data: data giving transmission at "old" absorption coefficient
+    transmi ssion_data: data giving transmission at "old" absorption coefficient
     abs_coeff_ratio: absorption coefficient at "new" energy / one at "old" energy
     Outputs:
     transmission at "new" energy
@@ -54,7 +54,7 @@ def fscale_transmission(transmission_data,abs_coeff_ratio):
     return np.exp(np.log(transmission_data) * abs_coeff_ratio)
 
 def ffit_distribution(proj_fit_function,x,projection_data,parameter_guesses):
-    '''Computes the axisymmetric fit to a distribution
+    '''Computes t he axisymmetric fit to a distribution
     Variables:
     projection_data: data for the projection
     proj_fit_function: function to be used to fit the projection
@@ -87,6 +87,20 @@ def fcompute_signal_trapping(x_lims, z_lims, num_x, num_z, rad_fit_function, rad
                                                 x_center_rad, x_center_fluor, detector_negative)
     return x,trap
 
+def fapply_signal_trapping_transmission(data_x,data_signal,sig_trap_x,sig_trap_trans):
+    '''Applies signal trapping transmission to data.
+    Includes back-interpolating from signal trapping grid to data grid.
+    Inputs:
+    data_x: x values for the data
+    data_signal: signal values for data, to which signal trapping is applied
+    sig_trap_x: x values for signal trapping transmission
+    sig_trap_trans: signal trapping transmission
+    Outputs:
+    data signal with signal trapping applied
+    '''
+    interpolated_transmission = interpolate.interp1d(sig_trap_x,sig_trap_trans)(data_x)
+    return data_signal / interpolated_transmission, interpolated_transmission
+
 def fwrite_corrected_fluorescence(hdf_file,x_dataset_name,old_dataset_name,new_dataset_name,sig_trap_x,sig_trap_trans):
     '''Corrects for signal trapping and writes to file.
     Variables:
@@ -99,7 +113,9 @@ def fwrite_corrected_fluorescence(hdf_file,x_dataset_name,old_dataset_name,new_d
     Returns: None
     '''
     #Interpolate the sig_trap array to the actual x points where the data are taken.
-    fluor_trans = interpolate.interp1d(sig_trap_x,sig_trap_trans)(hdf_file[x_dataset_name][...])
-    ALK.fwrite_HDF_dataset(hdf_file, new_dataset_name, hdf_file[old_dataset_name][...]/fluor_trans)
-    ALK.fwrite_HDF_dataset(hdf_file,old_dataset_name+'SignalTrappingTransmission',fluor_trans)
+    corr_data,corr_trans = fapply_signal_trapping_transmission(hdf_file[x_dataset_name][...],
+                                                               hdf_file[old_dataset_name][...],
+                                                               sig_trap_x,sig_trap_trans)
+    ALK.fwrite_HDF_dataset(hdf_file, new_dataset_name, corr_data)
+    ALK.fwrite_HDF_dataset(hdf_file,old_dataset_name+'SignalTrappingTransmission',corr_trans)
     return
