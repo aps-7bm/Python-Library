@@ -43,6 +43,16 @@ def fscale_absorption(absorption_data,abs_coeff_ratio):
     '''
     return absorption_data * abs_coeff_ratio
 
+def fscale_transmission(transmission_data,abs_coeff_ratio):
+    '''Rescales the transmission using a given absorption coefficient ratio
+    Inputs:
+    transmission_data: data giving transmission at "old" absorption coefficient
+    abs_coeff_ratio: absorption coefficient at "new" energy / one at "old" energy
+    Outputs:
+    transmission at "new" energy
+    '''
+    return np.exp(np.log(transmission_data) * abs_coeff_ratio)
+
 def ffit_distribution(proj_fit_function,x,projection_data,parameter_guesses):
     '''Computes the axisymmetric fit to a distribution
     Variables:
