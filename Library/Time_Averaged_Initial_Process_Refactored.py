@@ -44,6 +44,7 @@ norm_kwarg = {}
 integration_time = 1.0
 fast_time_constant = 3.13e-7    #Fast filter time constant
 reprocess_existing_hdf = False  #If HDF5 file exists, should we overwrite or leave it?
+rad_units = 'Extinction Lengths'
 
 def fconvert_files_to_hdf5(file_nums, mca_saving = True):
     '''Process a set of file numbers from mda to HDF5 format.
@@ -86,7 +87,7 @@ def fbatch_analyze_radiography(file_nums,dark_compute=False,dark_nums=[],abs_coe
         fanalyze_radiography(f_name,abs_coeff,dark_dict)
         print "File " + os.path.split(f_name)[-1] + " processed for radiography successfully."
 
-def fanalyze_radiography(f_name,abs_coeff=1,dark_dict={},units=None):
+def fanalyze_radiography(f_name,abs_coeff=1,dark_dict={}):
     '''Analyze time-averaged data from an HDF5 file converted from MDA format for
     radiography.
     '''
@@ -103,7 +104,7 @@ def fanalyze_radiography(f_name,abs_coeff=1,dark_dict={},units=None):
             #If they are, go ahead and process.  Send clear_ratio = 1 so we don't normalize within the dataset.
             #We will norm properly later in the workflow.
             radiography = Radiography_Process.fcompute_radiography_density(I, I0, 1, dark_dict[PIN_variable], dark_dict[I0_variable], abs_coeff)
-            ALK.fwrite_HDF_dataset(hdf_file, radiography_name, radiography,{'Absorption_Coefficient':abs_coeff,'Units':units})
+            ALK.fwrite_HDF_dataset(hdf_file, radiography_name, radiography,{'Absorption_Coefficient':abs_coeff,'Units':rad_units})
 
 def fnormalize_radiography(file_nums,ref_file_nums=None):
     '''Code to find a normalization for the radiography and apply it
