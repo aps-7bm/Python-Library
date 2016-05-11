@@ -33,6 +33,7 @@ I0_variable = '7bmb1:scaler1.S3'
 PIN_variable = '7bmb1:scaler1.S5'
 slow_variable = '7bmdsp1:dxp1:Events'       #name of good events recorded by fluorescence pulse processor
 fast_variable = '7bmdsp1:dxp1:Triggers'     #name of variable for triggers from fluorescence pulse processor fast filter
+integration_time_variable = None
 prefix = '7bmb1_'       #string of characters found before scan number in MDA file names.
 MDA_suffix = '.mda'
 HDF_suffix = '.hdf5'
@@ -41,10 +42,8 @@ radiography_name = 'Radiography'            #name to be given to processed radio
 names_dict = {}         #dictionary of fluorescence variables to be processed, in form new_name:EPICS_name
 norm_function = nf.ffind_normalization_radiography_minimums     #function to be used for normalizing the radiography
 norm_kwarg = {}
-integration_time = 1.0
+integration_time = 1.0      #Default integration time for fluorescence if no dataset with that info is given
 fast_time_constant = 3.13e-7    #Fast filter time constant
-reprocess_existing_hdf = False  #If HDF5 file exists, should we overwrite or leave it?
-rad_units = 'Extinction Lengths'
 
 def fconvert_files_to_hdf5(file_nums, mca_saving = True):
     '''Process a set of file numbers from mda to HDF5 format.
@@ -87,7 +86,7 @@ def fbatch_analyze_radiography(file_nums,dark_compute=False,dark_nums=[],abs_coe
         fanalyze_radiography(f_name,abs_coeff,dark_dict)
         print "File " + os.path.split(f_name)[-1] + " processed for radiography successfully."
 
-def fanalyze_radiography(f_name,abs_coeff=1,dark_dict={}):
+def fanalyze_radiography(f_name,abs_coeff=1,dark_dict={},units=None):
     '''Analyze time-averaged data from an HDF5 file converted from MDA format for
     radiography.
     '''
@@ -104,7 +103,10 @@ def fanalyze_radiography(f_name,abs_coeff=1,dark_dict={}):
             #If they are, go ahead and process.  Send clear_ratio = 1 so we don't normalize within the dataset.
             #We will norm properly later in the workflow.
             radiography = Radiography_Process.fcompute_radiography_density(I, I0, 1, dark_dict[PIN_variable], dark_dict[I0_variable], abs_coeff)
-            ALK.fwrite_HDF_dataset(hdf_file, radiography_name, radiography,{'Absorption_Coefficient':abs_coeff,'Units':rad_units})
+            if abs_coeff == 1 and not units:
+                ALK.fwrite_HDF_dataset(hdf_file, radiography_name, radiography,{'Absorption_Coefficient':abs_coeff,'Units':'Extinction Lenghts'})
+            else:
+                ALK.fwrite_HDF_dataset(hdf_file, radiography_name, radiography,{'Absorption_Coefficient':abs_coeff,'Units':units})
 
 def fnormalize_radiography(file_nums,ref_file_nums=None):
     '''Code to find a normalization for the radiography and apply it
@@ -185,22 +187,28 @@ def fanalyze_fluorescence(file_nums):
                 slow_events = hdf_file.get(slow_variable)[...]
                 fast_events = hdf_file.get(fast_variable)[...]
                 abs_coeff = hdf_file[radiography_name].attrs['Absorption_Coefficient']
+                
                 #Loop through the items in the name_dict
                 for (key,value) in names_dict.items():
                     fluor_dataset = hdf_file.get(value)
+                    #Check that the dataset exists
                     if not fluor_dataset:
                         print "Problem processing " + f_name + ": dataset " + value + " does not exist."
                         print "Skipping this variable."
                         continue
-                    corrected_fluor = Radiography_Process.fcompute_fluorescence(fluor_dataset[...],
-                                            slow_events[...], fast_events[...], rad_data[...], I0_data[...], abs_coeff)
-                    corrected_fluor = Radiography_Process.fcompute_fluorescence_fit_fast(fluor_dataset, 
+                    #If we have a variable for the integration time, use it
+                    if integration_time_variable:
+                        corrected_fluor = Radiography_Process.fcompute_fluorescence_fit_fast(fluor_dataset, 
+                                                slow_events, fast_events, rad_data, I0_data,
+                                                hdf_file[integration_time_variable][...], abs_coeff,False,fast_time_constant)
+                    else:
+                        corrected_fluor = Radiography_Process.fcompute_fluorescence_fit_fast(fluor_dataset, 
                                                 slow_events, fast_events, rad_data, I0_data,
                                                 integration_time, abs_coeff,False,fast_time_constant)
                     #Call the processing routine and write the dataset to file
-                    ALK.fwrite_HDF_dataset(hdf_file,key,corrected_fluor,{"Processing":'Dead_time,I0,attenuation'})
-            
-                    print "File " + os.path.split(f_name)[-1] + " analyzed for fluorescence successfully."
+                    ALK.fwrite_HDF_dataset(hdf_file,key,corrected_fluor,{"Processing":'Dead_time,I0,attenuation','Units':'Corrected counts'})
+                    print "Finished processing fluorescence variable " + value + "."
+                print "File " + os.path.split(f_name)[-1] + " analyzed for fluorescence successfully."
     
 def frun_radiography_only(file_nums,ref_file_nums=None,dark_compute=False,dark_nums=[],
                           abs_coeff=1):

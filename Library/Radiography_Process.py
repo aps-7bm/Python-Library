@@ -65,8 +65,9 @@ def fcompute_fluorescence_fit_fast(raw_fluorescence, slow_events, fast_events, r
     final_fluorescence = fcorrect_deadtime(raw_fluorescence,slow_events,fast_events,
                       integration_time,time_const)
     #
-    #Correct for the variations in the incoming intensity
-    final_fluorescence /= reference
+    #Correct for the variations in the incoming intensity.  Normalize the
+    #reference by its mean so we are still basically in detector counts.
+    final_fluorescence /= (reference / np.mean(reference))
     #
     #Convert radiography signal to extinction lengths.  If abs_coeff = 0, assume 
     #signal is transmission.
@@ -103,12 +104,12 @@ def fcorrect_deadtime(raw_fluorescence,slow_events,fast_events,
     fast_countrate = fast_events / integration_time
     #Perform fitting to correct fast countrate.  Do it on the flattened
     #array to retain generality if the array is multidimensional.
-    original_shape = fast_countrate.shape
-    fitted_fast_countrate = np.zeros_like(fast_countrate.flatten())
-    for i in range(len(fast_countrate.flatten())):
-        fitted_fast_countrate[i] = brentq(fdead_time_zero_function,fast_countrate[i]-50000,fast_countrate[i]+1e5,
-                    (fast_countrate[i],fast_filter_time_constant))
-    fitted_fast_countrate.reshape(original_shape)
+    reshaped_fast = fast_countrate.flatten()
+    fitted_fast_countrate = np.zeros_like(reshaped_fast)
+    for i in range(len(reshaped_fast)):
+        fitted_fast_countrate[i] = brentq(fdead_time_zero_function,reshaped_fast[i]-50000,reshaped_fast[i]+1e5,
+                    (reshaped_fast[i],fast_filter_time_constant))
+    fitted_fast_countrate = fitted_fast_countrate.reshape(fast_countrate.shape)
     #Compute live time from the slow and fast events.
     #Take care of NAN values, which may happen when fast_events=0.
     #For these points, assume dead time = 0, since there must be little or no flux.
