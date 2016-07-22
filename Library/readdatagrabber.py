@@ -91,6 +91,51 @@ def fparse_header_line(header,pair_delimit=" ",split_delimit="="):
         if len(key_value) <2: continue
         output[key_value[0]] = key_value[1]
     return output
+
+def fprint_headers(filename,record_length_key="RecordLength",
+                    data_type_key="BinaryDataType",
+                    channel_num_key="NumberOfChannels",
+                    coord_start="FileType=DataGrabberBinary",
+                    chan_start="Channel"):
+    '''Prints the headers to the console.
+    '''
+    #Throw an IOError if the file doesn't exist
+    if not os.path.isfile(filename):
+        print "No such file exists: " + filename
+        raise IOError
+    """Loop through the DataGrabber file, saving headers."""
+    with open(filename,'rb') as dg_file:
+        #Read in a potential header.  Trap possible extra \n
+        line = "a"
+        while line!="":
+            line = dg_file.readline()
+            #If this is a good coordinate header, 
+            if line.startswith(coord_start):
+                #Print this coordinate header
+                print line
+                #Parse header into a dictionary.  Remove last two characters, which are /r/n.
+                coordinate_header = fparse_header_line(line[:-2])
+                #Figure out how many channels there are.
+                num_channels = int(coordinate_header[channel_num_key])
+                #For each channel:
+                for i in range(num_channels):
+                    #Read in potential header.
+                    line = dg_file.readline()
+                    while not(line.startswith(chan_start)):
+                        #If we reach the end of the file here, this is a serious problem.
+                        if line=="": 
+                            print "Lost track of header for channel " + i
+                        #Otherwise, read another line
+                        line = dg_file.readline()
+                    #Print the channel header to the console
+                    print "--- " + line
+                    #Parse the header line into a dictionary. Remove last two characters, which are /r/n.
+                    meta_data = fparse_header_line(line[:-2])
+                    #Figure out how many bytes to skip.  
+                    num_bytes_per_point = bytes_per_point[meta_data[data_type_key]]
+                    num_points = int(meta_data[record_length_key])
+                    #Skip the appropriate number of bytes.
+                    dg_file.seek(num_points * num_bytes_per_point,1)
             
 class DataGrabberChannel():
     """Holder for channel headers and actual data from DataGrabber channel"""
