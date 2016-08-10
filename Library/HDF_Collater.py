@@ -4,6 +4,7 @@ into multidimensional datasets.
 Alan Kastengren, XSD
 
 Started: June 18, 2014
+May 20, 2016: add fcollate_file summary function to run everything in one step.
 '''
 import h5py
 import numpy as np
@@ -33,7 +34,7 @@ def ffind_groups(hdf_group,row_var_name):
 
 def ffind_subgroup_datasets(subgroup_list):
     '''Loops through the subgroup list, returning a dictionary
-    of dataset names and sizes.
+    of dataset names and shapes.
     Returns a dictionary, which hold dataset names as keys 
     maximum size of this dataset as the value.
     Using shape tuple rather than size to allow for more generality.
@@ -94,19 +95,15 @@ def fwrite_multidimensional_datasets(subgroup_list,datasets_dict,row_var,main_gr
             group_name = group.name.split('/')[-1]
             del main_group[group_name]
         
-
-#If group starts withdf_group[name]h proper prefix, it's a container for a subscan
-#Save in a list
-#If necessary, add to a list of the pertinent datasets
-#Also record the maximum number of points for each dataset
-#Define new arrays to hold the data
-#Repeat loop through top-level groups that have subscans
-#Fill the upper-level positioner array
-#Loop through datasets, filling the 2D arrays
-#Loop through the datasets, writing to HDF file.
-#Copy attributes from one of the subscan datasets to an empty group
-#Erase old group
-
+def fcollate_file(hdf_filename,file_path,row_var_name='7bmb1:m26.VAL'):
+    '''Runs all parts of code to make multidimensional arrays from
+    multidimensional scan data.
+    '''
+    with h5py.File(file_path+hdf_filename,'r+') as hdf_file:
+        subgroup_list,x_values = ffind_groups(hdf_file,row_var_name)
+        dataset_dict = ffind_subgroup_datasets(subgroup_list)
+        fwrite_multidimensional_datasets(subgroup_list,dataset_dict,x_values,hdf_file)
+ 
 if __name__ == '__main__':
     file_path = '/data/Data/SprayData/Cycle_2014_2/NX_School/'
     data_file = '7bmb1_0128.hdf5'
