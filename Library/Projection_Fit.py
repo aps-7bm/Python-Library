@@ -84,6 +84,16 @@ def fparabolic_density_projection(x_values, area, radius, center):
     output[mask] = area * 8.0 / (3.0 * radius**4 * np.pi) * (radius**2 - (x_values[mask] - center)**2)**1.5
     return output
 
+def fparabolic_density_unproject(radii,parameters):
+    '''Compute the distribution of a parabolic density distribution.
+    density = peak_value * (1 - r**2/R**2)
+    '''
+    output = np.zeros_like(radii)
+    peak_value = 2 * parameters[0] / np.pi / parameters[1]**2
+    mask = radii < parameters[1]
+    output[mask] = peak_value * (1 - radii[mask]**2 / parameters[1]**2)
+    return output
+
 def fdouble_parabolic_density_projection(x_values, area1, radius1, center, area2, radius2):
     '''Computes the curve resulting from the projection of two parabolic density distributions.
     Parameters list:
@@ -246,6 +256,21 @@ def fdribinski_k2_k3_sum(x_values, vert_scale2, sigma2, center, vert_scale3, sig
 def fdribinski_k2_k5_sum(x_values, vert_scale2, sigma2, center, vert_scale5, sigma5):
     return (fdribinski_projection(x_values, vert_scale2, sigma2, center, 2) +
             fdribinski_projection(x_values, vert_scale5, sigma5, center, 5))
+
+def fgauss_ellipse_sum(x_values,area, sigma, center,area_el,radius):
+    return fgauss_no_offset(x_values, area, sigma, center) + fellipse_fit_no_offset(x_values, area_el, radius, center)
+
+def fgauss_ellipse_sum_unproject(radii,parameters):
+    ellipse_params = [parameters[3],parameters[4],parameters[2]]
+    return fgauss_no_offset_unproject(radii, parameters[:3]) + fellipse_fit_distribution(radii, ellipse_params)
+
+def fellipse_parabola_sum(x_values,area, radius, center,area_p,radius_p):
+    return fparabolic_density_projection(x_values, area_p, radius_p, center) + fellipse_fit_no_offset(x_values, area, radius, center)
+
+def fellipse_parabola_sum_unproject(radii,parameters):
+    para_params = [parameters[3],parameters[4],parameters[2]]
+    return fellipse_fit_distribution(radii, parameters[:3]) + fparabolic_density_unproject(radii, para_params)
+
 '''
 sigma = 1.0
 r = np.linspace(0,10,1001)
