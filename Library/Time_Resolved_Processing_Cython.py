@@ -19,44 +19,59 @@ February 11, 2016: add in code to allow for signals to be simply read in and
                     refactoring.
 February 12, 2016: add in ability to exclude groups from being written from
                     coordinate headers.
+                    
+June 9, 2016: major rewrite of how binning is handled.
 
 
 """
 
 import numpy as np
 import readdatagrabber as rdg
-import scipy.interpolate
-import scipy.stats
 import h5py
 import ALK_Utilities as ALK
 import multiprocessing
-import ArrayBin_Cython as arc
 from __builtin__ import TypeError
+import os.path
+import logging
 
-file_path = ALK.fcorrect_path_start() + 'SprayData/Cycle_2015_1/Radiography/'
-I_name = 'PINDiode'
-I0_name = 'BIM'
+file_path = 'home/akastengren/data/SprayData/Cycle_2015_1/Radiography/'
+channels = []
 pulse_time = 153e-9         #Time between bunches in 24 bunch mode at APS as of 2015
-bunches = 24
+start_time = 0              #Time at which to start integrations
 num_processors = 6
 replicated = True
 digits = 4
 prefix = 'Scan_'
 suffix = '.dat'
 dark_file_num = None
-threshold_value = 0.05
 location_tolerance = 3e-3
 location_keys = ("X","Y")
 write_datatype = 'f4'
 exclude_groups = []
+pulsed_signal = True   #If True, signals are pulsed.
 
-def fcreate_filename(file_num):
-    return ALK.fcreate_filename(file_num,prefix,suffix,digits)
+class ChannelInfo():
+    '''Object to hold parameters for reading in a DataGrabber channel.
     
-def fread_meta_data(coord_object,descriptor,key):
-    for channel in coord_object.channels:
-        if channel.channel_header['UserDescription'] == descriptor:
-            return channel.channel_header[key]
+    Inputs:
+    desc_name: the descriptor name saved by DataGrabber
+    new_name: what do we want to call this
+    bin_method: what method should be used to bin the data
+    repeat_num: if there is a repeating pattern, how many bins does it repeat
+    dark_subtract: boolean to tell if dark current should be subtracted from this channel
+    dark_value: dark current value to be used for dark subtraction, if desired
+    pulse_time_base: is this channel a pulsed signal that will be used as a time base?
+    
+    '''
+    def __init__(self,desc_name,new_name,bin_method,repeat_num=1,dark_subtract=False,pulse_time_base=False):
+        self.desc_name = desc_name
+        self.new_name = new_name
+        self.bin_method = bin_method
+        self.repeat_num = repeat_num 
+        self.dark_subtract = dark_subtract 
+        self.dark_value = 0
+        self.pulse_time_base = pulse_time_base
+        self.temp_data = None
         
 class LocationInfo():
     '''Class to store information about a given location.  No methods.
@@ -109,209 +124,140 @@ def fparse_headers(dg_headers):
                 new_loc.dataset_sizes[channel_name] = int(channel.channel_header['RecordLength']) 
             location_info_list.append(new_loc)
     return location_info_list 
-        
-def fread_bin_signal_by_bunch(coord_object,descriptor="PINDiode"):
-    """Function to read in PIN data, find peak positions, and bin each peak.
+
+def fread_coordinate_data(coordinate,update_pulse_info=False):
+    '''Reads the data for a coordinate and bins.
     Inputs:
-    coord_object: readdatagrabber.py DataGrabberCoordinate object to be processed
-    descriptor: UserDescription value for the channel we want
+    coordinate: DataGrabberCoordinate object with data
+    update_pulse_time: if True, use pulsed data to update the module pulse time variable
+
+    '''
+    #Sort the channels by the update_pulse_time variable, putting True one first
+    sorted_channels = sorted(channels,key=lambda x:x.pulse_time_base,reverse=True)
+    #Check to make sure we don't have more than one channel set as pulse_time_base
+    num_pulse_time_base=0
+    for chan in sorted_channels:
+        if chan.pulse_time_base:
+            num_pulse_time_base += 1
+    assert(num_pulse_time_base < 2)
+    #Loop through the ChannelInfoChannel objects
+    for chinfochannel in sorted_channels:
+        #Update the pulse time if it is desired.  Store data in ChannelInfo object for now.
+        chinfochannel.temp_data = fread_channel_data(coordinate,chinfochannel,
+                                            update_pulse_info and chinfochannel.pulse_time_base)
+        #Subtract dark values
+        chinfochannel.temp_data -= chinfochannel.dark_value
+    return 
+
+def fread_channel_data(coord_obj,channel_obj,update_pulse_info=False):
+    '''Uses the ChannelInfo object channel_obj parameters
+    to read the appropriate data from this channel of the input object
+    coord_obj.
+    Inputs:
+    coord_obj: the readdatagrabber.DataGrabberCoordinate object being read
+    channel_obj: the ChannelInfo object with readin parameters
+    update_pulse_time: if True, update the global pulse_time based on readin
     Outputs:
-    bunch_removed_output: binned signal with bunch charge variations removed
-    pulse_time: actual time between synchrotron pulses.
-    """   
+    output_data: binned channel data
+    new_pulse_time: time duration of the pulses for pulsed data.
+    '''
     #Pick the appropriate coordinate, get channel with descriptor in it
-    for channel in coord_object.channels:
-        if channel.channel_header["UserDescription"]==descriptor: 
-            global pulse_time           #We will update this as we go along.
-            #Read in data on this channel
+    for channel in coord_obj.channels:
+        if channel.channel_header["UserDescription"]==channel_obj.desc_name: 
+            #Read in the channel data
             channel.fread_data_volts()
-            #If the peak value is too low, we may have no beam.  Return nothing,
-            #as our peak finding routine won't work
-            if np.mean(channel.data) < threshold_value:
-                channel.data = None
-                return None,None
-            #Find the peak positions
-            delta_t = float(fread_meta_data(coord_object,descriptor,"TimeStep"))
-            #Find the integration parameters
-            pulse_duration_points,start_point = ffind_integration_parameters(channel.data,pulse_time,delta_t)
-            #Write pulse duration to the channel
-            pulse_time = pulse_duration_points * delta_t
-            coord_object.coordinate_header["Pulse_Duration"] = pulse_time
-            #Perform integration with Cython code
-            output_data = arc.fbin_array(channel.data[start_point:],pulse_duration_points)
-            print "Processed ", len(output_data), " peaks for channel " + descriptor
-            #Divide the output data by the pulse duration to get an average voltage back
-            output_data = output_data / pulse_duration_points
-            print np.mean(output_data,dtype=np.float64)
-            #Attempt to remove the impact of bunch charge variations.
-            bunch_removed_output = fremove_bunch_charge_variations(output_data)
-            assert np.allclose(np.mean(output_data,dtype=np.float64),np.mean(bunch_removed_output,dtype=np.float64),1e-7,1e-7)
-            #Delete the array data from the channel to avoid maxing out memory
-            channel.data = None
-            return bunch_removed_output,pulse_time
-
-def ffind_integration_parameters(input_data,pulse_time,delta_t):
-    '''Find the correct start point and number of points per bin to integrate a
-    peaked signal whose repetition rate does not match the delta_t of the
-    input data.
-    Inputs:
-    input_data: peaked signal to be integrated
-    pulse_time: estimate of the time between pulses
-    delta_t: time period for each measurement point
-    Outputs:
-    actual_pulse_time: pulse time derived from data, assuming delta_t is right
-    start_point: the point at which to start integration
-    '''
-    #Use Cython code to find the peaks
-    peak_positions = arc.ffind_breakpoints_peaked(input_data,int(pulse_time / delta_t))
-    #Compute the actual average pulse duration and add to coordinate header
-    actual_pulse_duration,first_peak = scipy.stats.linregress(np.arange(peak_positions.size),peak_positions)[:2]
-    #Find the actual number of points before the peak that we should use
-    points_before_peak = ffind_points_before_peak(input_data,peak_positions,actual_pulse_duration)
-    #Give the start point for the integration
-    if first_peak > points_before_peak:
-        start_point = int(np.rint(first_peak - points_before_peak))
-    else:
-        start_point = int(np.rint(first_peak + actual_pulse_duration - points_before_peak))
-    return actual_pulse_duration * delta_t,start_point
-
-def ffind_points_before_peak(data_array,peak_positions,pulse_duration):
-    '''Figure out how many points before the peak we should go to perform integration.
-    Inputs:
-    data_array: actual data values
-    peak_positions: peak points for each bunch.
-    pulse_duration: average pulse duration in time steps
-    Outputs:
-    points_before_peak: how many time steps before peak to use for integration
-    '''
-    #Look over first one hundred peaks
-    points_before_peak_array = np.zeros(100)
-    back_step = int(2*pulse_duration/3)
-    for i in range(1,101):
-        minimum_point = np.argmin(data_array[peak_positions[i]-back_step:peak_positions[i]])
-        points_before_peak_array[i-1] = float(back_step - minimum_point)
-    return np.mean(points_before_peak_array)
-
-def fremove_bunch_charge_variations(input_array):
-    '''Removes the bunch charge variations from the data.
-    '''
-    output_array = np.zeros(np.size(input_array))
-    multiplier = np.zeros(bunches)
-    for i in range(bunches):
-        multiplier[i] = np.sum(input_array[i::bunches],dtype=np.float64)
-    #print multiplier
-    av_multiplier = np.mean(multiplier,dtype=np.float64)    
-    for i in range(bunches):
-        output_array[i::bunches] = input_array[i::bunches] * av_multiplier / multiplier[i]
-    return output_array
-
-def fread_signal_direct(coord_object,descriptor="PINDiode"):
-    """Function to read in data directly
-    Inputs:
-    coord_object: readdatagrabber.py DataGrabberCoordinate object to be processed
-    descriptor: UserDescription value for the channel we want
-    Outputs:
-    bunch_removed_output: binned signal with bunch charge variations removed
-    pulse_time: delta t between points
-    """   
-    #Pick the appropriate coordinate, get channel with descriptor in it
-    for channel in coord_object.channels:
-        if channel.channel_header["UserDescription"]==descriptor: 
-            #Find the delta_t
-            delta_t = float(fread_meta_data(coord_object,descriptor,"TimeStep"))
-            #Read in data and copy to a new array, then delete channel.data to save memory
-            channel.fread_data_volts()
-            output = channel.data
-            channel.data = None
-            return output,delta_t
-            
-def fnormalize_I0_interpolate(PIN_array,PIN_time,BIM_array,BIM_time):
-    """Function to normalize the PIN diode signal by BIM.
-    In case the two traces are at different delta_t, use interpolation.
-    Inputs:
-    PIN_array, BIM_array: array of PIN diode (BIM) signal
-    PIN_time, BIM_time: time array for PIN (BIM) signal
-    
-    """
-    #Create an interpolation function
-    BIM_function = scipy.interpolate.interp1d(BIM_time,BIM_array,bounds_error=False,fill_value=BIM_array[-1])
-    print "Max PIN time = ",np.max(PIN_time),", Max BIM time = ", np.max(BIM_time)
-    #Normalize
-    return PIN_array / BIM_function(PIN_time)
-
-def fnormalize_I_I0_colocated(PIN_array,BIM_array):
-    '''Function to normalize the PIN diode signal by the BIM if they are both
-    taken on the same scope simultaneously.  As such, no time shift or
-    interpolation are needed.
-    Inputs:
-    PIN_array, BIM_array: arrays of pulse-averaged values from PIN and BIM.
-    Output:
-    Normalized PIN diode signal
-    '''
-    min_length = min(PIN_array.size,BIM_array.size)
-    return PIN_array[:min_length]/BIM_array[:min_length]
-
-def fcompute_time_array(pulse_time,data_size):
-    """Computes the time arrays for a dataset.
-    Returns tuple of numpy arrays (PIN_times,BIM_times).
-    """
-    return np.linspace(0,(data_size-1)*pulse_time,data_size)
+            #Get the delta_t for these data
+            delta_t = float(coord_obj.fread_channel_meta_data(channel_obj.desc_name,"TimeStep"))
+            #Bin the data
+            output_data,new_pulse_time,new_start_time = channel_obj.bin_method(channel.data,delta_t,
+                                                            pulse_time,channel_obj.repeat_num, start_time)
+            #If desired, update the pulse time and start_time
+            if update_pulse_info:
+                global pulse_time, start_time
+                pulse_time = new_pulse_time
+                start_time = new_start_time
+            #Delete the channel data to conserve memory
+            del(channel.data)
+            return output_data
 
 def ffind_dark_current(dark_num,directory=None):
-    """Function to find the average value of PIN and BIM from a scan.
-    Used to compute the dark current from a dark scan, in particular.
+    """Function to find values from a dark scan.  Save values to the
+    ChannelInfo object for each channel.
     """
     #Use the default directory unless one is give
     if not directory:
         directory = file_path
+    #If there is no valid dark file, just return
     if not dark_num:
-        return 0,0
+        return
     #Read in headers
-    filename = fcreate_filename(dark_num)
+    filename = ALK.fcreate_filename(dark_num,prefix,suffix,digits)
+    if not os.path.isfile(directory+filename):
+        print "Dark file doesn't exist.  Returning."
+        return
     #Read in the header information
     try:
         header_data = rdg.fread_headers(directory+filename)
     except IOError:
         print "Problem reading file " + filename
         return
-    mean_PIN = 0
-    mean_BIM = 0
+    
     #Loop through the coordinates measured
     for coordinate in header_data:
-        mean_BIM += np.mean(coordinate.channels[I0_name].fread_data_volts(),dtype=np.float64)
-        mean_PIN += np.mean(coordinate.channels[I_name].fread_data_volts(),dtype=np.float64)
-        #Clear data so we don't soak up too much memory needlessly
-        for channel in coordinate.channels:
-            del(channel.data)
-        print str(coordinate + 1) + " coordinates processed for dark current."
-    return mean_PIN / float(len(header_data)), mean_BIM / float(len(header_data))
+        #Loop through the ChannelInfo objects
+        for chinfochannel in channels:
+            #If this isn't one for which we are supposed to dark subtract, skip
+            if not chinfochannel.dark_subtract:
+                continue
+            #Find the channel with the right description
+            chan = coordinate.fchannel_by_name(chinfochannel.desc_name)
+            #Read in data
+            chan.fread_data_volts()
+            chinfochannel.dark_value += np.mean(chan.data,dtype=np.float64)
+            #Delete channel data to conserve memory and break loop: we found our channel
+            del(chan.data)
+            
+     #Divide by the number or coordinates to get the right dark value
+    for chinfochannel in channels:
+        chinfochannel.dark_value /= float(len(header_data))  
+        print chinfochannel.desc_name + " " + str(chinfochannel.dark_value) 
+    print str(len(header_data) + 1) + " coordinates processed for dark current."
+    return
 
-def fcreate_datasets_channels(hdf_group,channel_sizes,max_replicates,num_locations):
+def fcreate_datasets_channels(hdf_group,max_replicates,num_locations):
     '''Writes zeros datasets to HDF5 Group for each channel to preallocate.
     Inputs:
     hdf_file: h5py Group object to which to write the datasets
-    channel_size: dict in form channel_name:max_record_length
     max_replicates: maximum number of times any location is replicated
     num_locations: number of locations
     '''
     #Create top-level datasets for the channels, erasing old datasets if they exist
-    for channel,c_size in channel_sizes.items():
-        if channel in hdf_group.keys():
-            del hdf_group[channel]
+    for chinfochannel in channels:
+        #Remove this channel from the hdf file if it already exists
+        if chinfochannel.new_name in hdf_group.keys():
+            del hdf_group[chinfochannel.new_name]
+        #What is the length of the temporary data we've already read in
+        c_size = chinfochannel.temp_data.shape[0]
         #Make 2D arrays if there are no replications.  Otherwise, make 3D arrays.
         if max_replicates > 1:
-            hdf_group.create_dataset(channel,shape=(num_locations,c_size,max_replicates), dtype=write_datatype)
-            hdf_group[channel].dims[2].label = 'Replicates'
+            hdf_group.create_dataset(chinfochannel.new_name,shape=(num_locations,c_size,max_replicates), dtype=write_datatype)
+            hdf_group[chinfochannel.new_name].dims[2].label = 'Replicates'
         else:
-            hdf_group.create_dataset(channel,shape=(num_locations,c_size), dtype=write_datatype)
-        #Label the dimensions of the datasets for posterity
-        hdf_group[channel].dims[0].label = 'Location'
-        hdf_group[channel].dims[1].label = 'Time'
+            hdf_group.create_dataset(chinfochannel.new_name,shape=(num_locations,c_size), dtype=write_datatype)
+        #Label the dimensions of the datasets
+        hdf_group[chinfochannel.new_name].dims[0].label = 'Location'
+        hdf_group[chinfochannel.new_name].dims[1].label = 'Time'
         
 def fparse_dictionary_numeric_string(input_dict):
     '''Parses a dictionary into two lists of keys, one whose values cast to a
     numeric type, the other not (assumed to be just strings).  
     Also returns maximum length value length for the string keys.
+    Inputs:
+    input_dict: dictionary of key:value pairs from a header line
+    Outputs:
+    num_output: list of names of keys which give numeric outputs
+    string_output: list of names of keys which give string outputs
+    max_string_len: maximum length of strings needed for string key values
     '''
     #Loop through dictionary, trying to parse the value into a number
     num_output = []
@@ -333,14 +279,14 @@ def fparse_dictionary_numeric_string(input_dict):
 
 def fcreate_datasets_coord_header(hdf_group,coord_header,max_replicates,num_locations):
     '''Preallocates datasets for the variables saved in the coordinate headers.
+    
     Inputs:
-    hdf_file: h5py Group object to which to write the datasets
+    hdf_group: h5py Group object to which to write the datasets
     coord_header: example readdatagrabber.py Coordinate.coordinate_header
     max_replicates: maximum number of times any location is replicated
     num_locations: number of locations
     '''
     #Create top_level datasets for any numeric values from the coordinate headers.  Use first coordinate as a guide.
-    print coord_header
     numeric_header_keys, string_header_keys, max_string_len = fparse_dictionary_numeric_string(coord_header)
     dtype_string = 'S' + str(max_string_len)
     if replicated:
@@ -357,20 +303,23 @@ def fcreate_datasets_coord_header(hdf_group,coord_header,max_replicates,num_loca
             hdf_group.create_dataset(string_key,shape=(num_locations,),dtype=dtype_string)
     return numeric_header_keys, string_header_keys
 
-def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None,peaked=True):
+def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None):
     """Function to fully process PIN data at the specified coordinate.
         Writes processed PIN data to an HDF5 file using multiprocessing.
         Each position is saved as one group.  Only coordinate (not channel) header
         data saved as attributes of dataset.
     """
     #Make the filename
-    filename = fcreate_filename(file_num)
+    filename = ALK.fcreate_filename(file_num,prefix,suffix,digits)
     print filename
-    #Set the directory and write_filename to reasonable defaults if they aren't already
+    #Set the directory and write_filename to reasonable defaults if they aren't specified
     if not directory:
         directory = file_path
     if not write_filename:
         write_filename = filename.split('.')[0] + '.hdf5'
+    #Bail out if the file doesn't exist
+    if not os.path.isfile(directory+filename):
+        return
     #Open an HDF5 file to save the data.
     with h5py.File(directory+write_filename,'w') as write_file:
         #Read in the header information
@@ -388,28 +337,19 @@ def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None,pe
                     
         #Lets see how the calculations worked.
         for loc_info in location_info_list:
-            print str(loc_info.location_values)
-            print "Replicates = " + str(loc_info.fget_num_replicates())
+            print "Replicates = " + str(loc_info.fget_num_replicates()) + " at location " + str(loc_info.location_values)
             
         #Find dark currents: only do this once
-        I_dark, I0_dark = ffind_dark_current(dark_file_num)
-        print "Dark I = " + str(I_dark) + " V, Dark I0 = " + str(I0_dark) + " V."    
-        #Process the first file to see how big the final data will be
-        test_processed_data, pulse_duration_I = fread_normalize_coordinate_data(headers[0],I_name,I0_name,I_dark,I0_dark,peaked)
-#         (binned_I,pulse_duration_I) = fread_bin_signal_by_bunch(headers[0],I_name)
-#         (binned_I0,pulse_duration_I0) = fread_bin_signal_by_bunch(headers[0],I0_name)
-#         if binned_I == None:
-#             binned_I = np.zeros_like(binned_I0)
-#             pulse_duration_I = pulse_duration_I0
-#         else:
-#             binned_I -= I_dark
-#             binned_I0 -= I0_dark
-#         test_processed_data = fnormalize_I_I0_colocated(binned_I,binned_I0)
+        ffind_dark_current(dark_file_num)
+   
+        #Process the first coordinate to update pulse time and get the sizes of the arrays
+        fread_coordinate_data(headers[0],True)
+        
         #Add a time step variable to the saved datasets
-        location_info_list[0].header_coord_objects[0].coordinate_header['Time_Step'] = pulse_duration_I
+        write_file.attrs['Time_Step'] = pulse_time
         
         #Preallocate arrays in the HDF5 file from the channels
-        fcreate_datasets_channels(write_file,{'Intensity':test_processed_data.shape[0]},max_replicates,len(location_info_list))
+        fcreate_datasets_channels(write_file,max_replicates,len(location_info_list))
         
         #Preallocate arrays in the HDF5 from the coordinate headers
         numeric_keys, string_keys = fcreate_datasets_coord_header(write_file,
@@ -421,53 +361,39 @@ def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None,pe
         for i,loc_info in enumerate(location_info_list):
             print "Working on position # " + str(i) + ", position " + str(loc_info.location_values)
             for (replicate_num,coordinate) in enumerate(loc_info.header_coord_objects):
-                fprocess_coordinate(coordinate,write_file,I_dark,I0_dark,numeric_keys,
-                            string_keys,i,replicate_num,peaked=peaked)
+                fprocess_coordinate(coordinate,write_file,numeric_keys,
+                            string_keys,i,replicate_num)
                 #Clear out entries in headers so we don't overload memory
                 coordinate = ""
             loc_info = ""
 
-def fprocess_coordinate(coordinate,hdf_group,I_dark,I0_dark,numeric_keys,string_keys,location_num,replicate,signal_name="Intensity",peaked=True):
+def fprocess_coordinate(coordinate,hdf_group,numeric_keys,string_keys,location_num,replicate):
     '''Processes one coordinate of the DataGrabber file.
     '''
     print "Replicate # " + str(replicate)
-    #Loop through the header, writing numbers to the appropriate datasets
-#     for numeric_key in numeric_keys:
-#         if numeric_key in coordinate.coordinate_header:
-#             hdf_group[numeric_key][location_num,replicate] = float(coordinate.coordinate_header[numeric_key])
-#     #Write string datasets for string header data
-#     for string_key in string_keys:
-#         if string_key in coordinate.coordinate_header:
-#             hdf_group[string_key][location_num,replicate] = str(coordinate.coordinate_header[string_key])
-    #Find the binned data
-    final_data, pulse_duration = fread_normalize_coordinate_data(coordinate,I_name,I0_name,I_dark,I0_dark,peaked)
-#     (binned_I,pulse_duration_I) = fread_bin_signal_by_bunch(coordinate,I_name)
-#     (binned_I0,pulse_duration_I0) = fread_bin_signal_by_bunch(coordinate,I0_name)
-#     #Check if we didn't have a good signal for I
-#     if binned_I == None:
-#         binned_I = np.zeros_like(binned_I0)
-#         pulse_duration_I = pulse_duration_I0
-#     else:
-#         binned_I -= I_dark
-#         binned_I0 -= I0_dark
-#     final_data = fnormalize_I_I0_colocated(binned_I,binned_I0)
-    max_length = hdf_group[signal_name].shape[1]
-    if final_data.shape[0] < max_length:
-        max_length = final_data.shape[0]
-    if replicated:
-        hdf_group[signal_name][location_num,:max_length,replicate] = final_data[:max_length]
-        hdf_group['Time_Step'][location_num,replicate] = pulse_duration
-        #Write numeric values from headers
-        for numeric_key in numeric_keys:
-            if numeric_key in coordinate.coordinate_header:
-                hdf_group[numeric_key][location_num,replicate] = float(coordinate.coordinate_header[numeric_key])
-        #Write string datasets for string header data
-        for string_key in string_keys:
-            if string_key in coordinate.coordinate_header:
-                hdf_group[string_key][location_num,replicate] = str(coordinate.coordinate_header[string_key])
-    else:
-        hdf_group[signal_name][location_num,:max_length] = final_data[:max_length]
-        hdf_group['Time_Step'][location_num] = pulse_duration
+    #Read the binned data.  This also performs dark subtraction
+    fread_coordinate_data(coordinate,False)
+    #Start looping through the ChannelInfo objects
+    for chinfochannel in channels:
+        signal_name = chinfochannel.new_name
+        final_data = chinfochannel.temp_data
+        #Take care of case where number of read points is different from preallocated size
+        max_length = hdf_group[signal_name].shape[1]
+        if chinfochannel.temp_data.shape[0] < max_length:
+            max_length = final_data.shape[0]
+        #Put the data into the proper place in the preallocated array
+        if replicated:
+            hdf_group[signal_name][location_num,:max_length,replicate] = final_data[:max_length]
+            #Write numeric values from headers
+            for numeric_key in numeric_keys:
+                if numeric_key in coordinate.coordinate_header:
+                    hdf_group[numeric_key][location_num,replicate] = float(coordinate.coordinate_header[numeric_key])
+            #Write string datasets for string header data
+            for string_key in string_keys:
+                if string_key in coordinate.coordinate_header:
+                    hdf_group[string_key][location_num,replicate] = str(coordinate.coordinate_header[string_key])
+        else:
+            hdf_group[signal_name][location_num,:max_length] = final_data[:max_length]
         #Write numeric values from headers
         for numeric_key in numeric_keys:
             if numeric_key in coordinate.coordinate_header:
@@ -477,23 +403,8 @@ def fprocess_coordinate(coordinate,hdf_group,I_dark,I0_dark,numeric_keys,string_
             if string_key in coordinate.coordinate_header:
                 hdf_group[string_key][location_num] = str(coordinate.coordinate_header[string_key])
 
-def fread_normalize_coordinate_data(coordinate,I_name,I0_name,I_dark=0,I0_dark=0,peaked=True):
-    '''Reads the data for a coordinate and normalizes I by I0.
-    '''
-    if peaked:
-        (binned_I,pulse_duration_I) = fread_bin_signal_by_bunch(coordinate,I_name)
-        (binned_I0,pulse_duration_I0) = fread_bin_signal_by_bunch(coordinate,I0_name)
-    else:
-        (binned_I,pulse_duration_I) = fread_signal_direct(coordinate,I_name)
-        (binned_I0,pulse_duration_I0) = fread_signal_direct(coordinate,I0_name)
-    if binned_I == None:
-        return np.zeros_like(binned_I0), pulse_duration_I0
-    else:
-        binned_I -= I_dark
-        binned_I0 -= I0_dark
-    return fnormalize_I_I0_colocated(binned_I,binned_I0),pulse_duration_I
 
-def fbatch_conversion_multiprocess(file_nums,peaked=True):
+def fbatch_conversion_multiprocess(file_nums):
     '''Class to batch process a large number of DataGrabber files.
     Should work with strings or numbers given in file_nums list.
     '''
@@ -505,7 +416,7 @@ def fbatch_conversion_multiprocess(file_nums,peaked=True):
         process.start()
     #Set up multiprocessing JoinableQueue
     for file_num in file_nums:
-        tasks.put(MP_Task(file_num,peaked))
+        tasks.put(MP_Task(file_num))
     #Add poison pills at the end of the queue so MP_Process objects know when to stop.
     for i in range(num_processors):
         tasks.put(None)
@@ -522,12 +433,11 @@ def fbatch_conversion_serial(file_nums):
 class MP_Task():
     '''Object to allow for file conversion to occur in a JoinableQueue
     '''
-    def __init__(self,file_num,peaked):
+    def __init__(self,file_num):
         self.file_num = file_num
-        self.peaked = peaked
     
     def __call__(self):
-        fconvert_to_hdf5_multiprocess(self.file_num,peaked=self.peaked)
+        fconvert_to_hdf5_multiprocess(self.file_num)
 
 class MP_Process(multiprocessing.Process):
     def __init__(self,task_queue):

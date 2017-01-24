@@ -23,6 +23,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import re
+import logging
 
 #Dictionary for converting datatype to number of bytes
 bytes_per_point = {"byte":1, "short":2, "int":4, "float":4, "long":8, "double":8}
@@ -37,7 +38,7 @@ def fread_headers(filename,record_length_key="RecordLength",
     file_data = []
     #Throw an IOError if the file doesn't exist
     if not os.path.isfile(filename):
-        print "No such file exists: " + filename
+        logging.error("No such file exists: " + filename)
         raise IOError
     """Loop through the DataGrabber file, saving headers."""
     with open(filename,'rb') as dg_file:
@@ -61,8 +62,8 @@ def fread_headers(filename,record_length_key="RecordLength",
                     while not(line.startswith(chan_start)):
                         #If we reach the end of the file here, this is a serious problem.
                         if line=="": 
-                            print "Lost track of header for channel", i, ",\
-                                    coordinate #", len(file_data)
+                            logging.error("Lost track of header for channel", i, ",\
+                                    coordinate #", len(file_data))
                             return file_data
                         #Otherwise, read another line
                         line = dg_file.readline()
@@ -81,7 +82,7 @@ def fread_headers(filename,record_length_key="RecordLength",
                     num_points = int(current_channel.channel_header[record_length_key])
                     #Skip the appropriate number of bytes.
                     dg_file.seek(num_points * num_bytes_per_point,1)
-        print "Found ", len(file_data)," positions."
+        logging.info("Found ", len(file_data)," positions.")
         return file_data
 
 def fparse_header_line(header,pair_delimit=" ",split_delimit="="):
@@ -104,7 +105,7 @@ def fprint_headers(filename,record_length_key="RecordLength",
     '''
     #Throw an IOError if the file doesn't exist
     if not os.path.isfile(filename):
-        print "No such file exists: " + filename
+        logging.error("No such file exists: " + filename)
         raise IOError
     """Loop through the DataGrabber file, saving headers."""
     with open(filename,'rb') as dg_file:
@@ -127,7 +128,7 @@ def fprint_headers(filename,record_length_key="RecordLength",
                     while not(line.startswith(chan_start)):
                         #If we reach the end of the file here, this is a serious problem.
                         if line=="": 
-                            print "Lost track of header for channel " + i
+                            logging.error("Lost track of header for channel", i)
                         #Otherwise, read another line
                         line = dg_file.readline()
                     #Print the channel header to the console
@@ -190,6 +191,21 @@ class DataGrabberCoordinate():
         for channel in self.channels:
             if channel.channel_header['UserDescription'] == descriptor:
                 return channel.channel_header[key]
+            
+    def fchannel_by_name(self,descriptor):
+        '''Returns the channel with the desired UserDescription.
+        
+        Inputs:
+        descriptor: text to match to value of UserDescription key.
+        Outputs:
+        readdatagrabber.DataGrabberChannel object.
+        '''
+        for channel in self.channels:
+            if channel.channel_header['UserDescription'] == descriptor:
+                return channel
+        else:
+            logging.error("Error in fchannel_by_name: channel name not found: " + descriptor)
+            return None
     
     def fdisplay_excerpt(self,descriptor="PINDiode",end=False,num_points=1e4):
         """Module to display first part of a channel.
