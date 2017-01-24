@@ -15,11 +15,14 @@ useful ideas for this code.
 Edits:
 May 5, 2014: Add check that DataGrabber file exists.
 February 24, 2015: Add function to display an excerpt of a channel.
+December 13, 2016: Dan Duke added regex to line 87 to correctly parse number-as-string PVs which have leading whitespace.
+January 24, 2017: Add the fread_channel_meta_data method to DataGrabberCoordinate
 """
 
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+import re
 
 #Dictionary for converting datatype to number of bytes
 bytes_per_point = {"byte":1, "short":2, "int":4, "float":4, "long":8, "double":8}
@@ -83,7 +86,7 @@ def fread_headers(filename,record_length_key="RecordLength",
 
 def fparse_header_line(header,pair_delimit=" ",split_delimit="="):
     """Parses a DataGrabber header line into a dictionary"""
-    split_header = header.split(pair_delimit)
+    split_header = re.sub('= +','=',header).split(pair_delimit)
     output = {}
     for pair in split_header:
         key_value = pair.split(split_delimit)
@@ -182,6 +185,11 @@ class DataGrabberCoordinate():
 
         for channel in self.channels:
             channel.fread_data()
+            
+    def fread_channel_meta_data(self,descriptor,key):
+        for channel in self.channels:
+            if channel.channel_header['UserDescription'] == descriptor:
+                return channel.channel_header[key]
     
     def fdisplay_excerpt(self,descriptor="PINDiode",end=False,num_points=1e4):
         """Module to display first part of a channel.

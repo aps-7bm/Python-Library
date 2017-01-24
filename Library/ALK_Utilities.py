@@ -16,6 +16,7 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg
+from socket import gethostname
 
 def fwrite_HDF_dataset(hdf_group,name,input_data,attributes=None,save_old_attrs=False,return_dset=False):
     '''Writes a dataset to the input HDF5 group.  Checks if the dataset already exists,
@@ -84,13 +85,23 @@ def fcheck_file_datasets(hdf_file, names_list=[]):
         return True
 
 def fcorrect_path_start():
-    '''Returns the correct start to the path for going between
-    beamline workstation and laptop.
+    '''Returns the correct start for different computers.
+    
+    It gives the parent directory of the link to SprayData.
     '''
-    if os.path.isdir('/data/Data/'):
-        return '/data/Data/'
+    host_name = gethostname()
+    #My new laptop
+    if host_name.startswith('stokes'):
+        return '/home/akastengren/data/'
+    #My old laptop
+    elif host_name.startswith('euler'):
+        return '/data/Data'
+    #Beamline workstations
+    elif host_name.endswith('aps.anl.gov'):
+        return '/home/'
     else:
-        return '/home/beams/AKASTENGREN/'
+        print "Unknown hostname.  Returning current directory."
+        return os.getcwd() + '/'
     
 def fcompare_values(desired_value,search_values,tolerance=None):
     '''Returns whether search_values are within tolerance of desired_value.
