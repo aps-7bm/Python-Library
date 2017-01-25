@@ -76,6 +76,7 @@ def fread_scan(data,hdf_group):
     if rank>1:
         for i in range(requested_num_points):
             lower_scans_pointers.append(data.unpack_int())
+        #Only save up to the current_point, as others are garbage from abort
         lower_scans_pointers = lower_scans_pointers[:current_point]
     #
     #Read through the info fields
@@ -132,12 +133,34 @@ def fread_scan(data,hdf_group):
             print detector_meta[i]['Name']
             hdf_group.create_dataset(detector_meta[i]['Name'],data=detector_array[:current_point])
     #
-    #Now, start looping through the lower dimensional scans.  Again, this
+    #If this was the lowest rank, return now
+    if len(lower_scans_pointers) == 0:
+        return
+    #Start looping through the lower dimensional scans.  Again, this
     #will end up being recursive for a multi-dimensional scan.
-    if len(lower_scans_pointers)>0 and not (mca_saving and hdf_group.attrs["Rank"] == 2):
+    #First case: want to treat lowest scan as an MCA and we're at the second to lowest scan.
+    if mca_saving and hdf_group.attrs["Rank"] == 2:
+        #Since we are at the lowest level, only look up the current_point
+        for j in range(len(lower_scans_pointers)):
+            data.set_position(lower_scans_pointers[j])
+            #Call subroutine that just returns detector names and arrays of their values
+            (detector_names,detector_arrays) = fread_MCA_scan(data)
+            #If this is the first point, we must set up appropriate datasets in the hdf group.
+            #If not, just add as appropriate columns in the existing datasets.
+            for i in range(len(detector_names)):
+                for name in hdf_group.keys():
+                    if name == detector_names[i]:
+                        break
+                else:
+                    hdf_group.create_dataset(detector_names[i],data=np.zeros((current_point,len(detector_arrays[i]))))
+                #Add data, but only if sizes match
+                if np.size(detector_arrays[i])==np.size(hdf_group[detector_names[i]][j,...]):
+                    hdf_group[detector_names[i]][j,...] = detector_arrays[i]
+    #All other cases: recurse.
+    else:
         for j in range(len(lower_scans_pointers)):
             #Create a new subgroup
-            #Give the subgroup an intelligible name if there is one positioner.
+            #Give the subgroup an intelligible name if there is only one positioner.
             if num_positioners == 1 and positioner_meta[0]['Name']:
                 name = positioner_meta[0]['Name'] + "=" + str(positioner_values[0][j])
             else:
@@ -150,37 +173,23 @@ def fread_scan(data,hdf_group):
                 raise ValueError 
             data.set_position(lower_scans_pointers[j])
             fread_scan(data,subgroup)
-            #Remove the subgroup if 
-            
-    #Handle case where the lowest scan rank is scanH scans saving mca data.
-    elif len(lower_scans_pointers)>0 and mca_saving and hdf_group.attrs["Rank"] == 2:
-        #Since we are at the lowest level, only look up the current_point
-        for j in range(np.min([len(lower_scans_pointers),current_point])):
-            data.set_position(lower_scans_pointers[j])
-            #Call subroutine that just returns detector names and arrays of their values
-            (detector_names,detector_arrays) = fread_MCA_scan(data)
-            #If this is the first point, we must set up appropriate datasets in the hdf group.
-            #If not, just add as appropriate columns in the existing datasets.
-            for i in range(len(detector_names)):
-                for name in hdf_group.keys():
-                    if name == detector_names[i]:
-                        break
-                else:
-                    hdf_group.create_dataset(detector_names[i],data=np.zeros((current_point,len(detector_arrays[i]))))
-                #Add data, but only if j < current_point
-                if j < current_point and np.size(detector_arrays[i])==np.size(hdf_group[detector_names[i]][j,...]):
-                    hdf_group[detector_names[i]][j,...] = detector_arrays[i]
+
     return
 
 def fread_MCA_scan(data):
-    '''Function to read through a scan and return the PV names and array values
-    for all detectors.  Used for saving MCA scans.
+    '''Reads an MCA scan.
+    
+    Performs similar functionality to fread_scan, but assumes that we only care
+    about the array data, not the positioners and detectors.  This is a good
+    assumption for MCA data (e.g., fluorescence spectra, for example).
     '''
     #Read through scan header.
+    #Make sure we really are at the lowest level of the file.
     rank = data.unpack_int()
+    assert rank == 1
     requested_num_points = data.unpack_int()
     current_point = data.unpack_int()
-    #Read through the info fields
+    #Read through the info fields.  Variables not used.
     scan_name = fparse_counted_string(data)
     time_stamp = fparse_counted_string(data)
     #Find the number of positioners, detectors, and triggers
