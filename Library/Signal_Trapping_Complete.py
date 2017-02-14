@@ -293,6 +293,33 @@ def fcompute_attenuation_correction(x_lims, z_lims,num_x,num_z,
     x,atten_corr_proj_trans = fprojection_weighted_average(x_vals,z_vals,fluor_array,attenuation_corr_array)
     return x,atten_corr_proj_trans
 
+def fcompute_combined_signal_trapping_attenuation(x_lims, z_lims,num_x,num_z,
+                                    rad_obj,fluor_obj,
+                                    detector_negative=True):
+    '''Computes the combined effects of signal trapping and attenuation.
+    '''
+    #Create the arrays we will use for the 
+    x_vals, z_vals = fcreate_arrays(x_lims, z_lims,num_x,num_z)
+    #Fit projections of radiography and fluorescence
+    absorption_array = rad_obj.fdist_from_proj(x_vals, z_vals)
+    fluor_array = fluor_obj.fdist_from_proj(x_vals, z_vals)
+    
+    #Compute the 2D distribution of signal trapping, converting to transmission
+    signal_trapping_array = fcalculate_signal_trapping_2D(x_vals,z_vals,
+                                                          absorption_array* fluor_obj.abs_ratio,detector_negative)
+    
+    #Compute the 2D distribution of attenuation for correcting the fluorescence
+    attenuation_corr_array = fcalculate_attenuation_2D(x_vals,z_vals,absorption_array,detector_negative)
+    
+    #Average this for each projection
+    x,signal_trap_proj_trans = fprojection_weighted_average(x_vals,z_vals,
+                                                            fluor_array,
+                                                            signal_trapping_array * attenuation_corr_array)
+    plt.plot(x,signal_trap_proj_trans)
+    plt.show()
+    
+    return x,signal_trap_proj_trans
+
 def ftest_code(abs_peak = 0.4,orad=2.0,irad=1.0,fluor_peak=100000,fluor_rad=0.01,abs_ratio=2.0):
     '''Code to test whether I am calculating things correctly.
     '''
