@@ -12,6 +12,21 @@ May 7, 2014: Change meta data reading functions so they always give a name.  Sim
 May 7, 2014: Save only the positioner and detector arrays up to current point.
 June 18, 2014: Minor change to check the existence of the input file.
 March 5, 2015: Add function frun_append to append MDA file data to an existing HDF file.
+
+Feb 23, 2017: Changes made by D Duke:
+              Set directory in frun_main to "" so that user can point to any directory from command line by default.
+              Using os.path functions to generate output filename in frun_main, more robust than splitting on "."
+              (allows writing to a different place with ".." in the path name for example)
+              Fixed some harmless typos.
+              
+Dan's wish list for future features:
+    - built in HDF5 compression option
+    - cleaner command line interface (using OptionParser for example, to give standard *NIX cmd line switches)
+    - Move some hard coded features like mca_saving flag into the command line arguments.
+    - Add command line interface access to frun_append function.
+    - Allow multiple mca files to be intelligently merged into N-d arrays for each PV (i.e. a 2D scan made up
+      of a handful of 1D scans, that might each have MCAs in them).
+
 """
 #
 #Imports
@@ -19,7 +34,7 @@ import h5py
 import xdrlib
 import numpy as np
 import os.path
-mca_saving = False
+mca_saving = True
 #
 def fparse_counted_string(data):
     '''Parses the data to get a counted string,
@@ -313,19 +328,20 @@ def fread_extra_PVs(data,group):
             extra_PV_group.attrs[prefix + "_Value"] = pv_value
     return
     
-def frun_main(input_file="7bmb1_0933.mda",directory="/data/Data/SprayData/Cycle_2012_3/Time_Averaged_ISU/",mca_saving_flag=False):
+def frun_main(input_file="7bmb1_0933.mda",directory="",mca_saving_flag=False):
     '''Function that tests the working of the code.
     '''
     #Parse the input file into the main part of the file name and the extension.
     global mca_saving
     mca_saving = mca_saving_flag
-    output_filename = input_file.split(".")[0] + ".hdf5"
+    output_filename = os.path.splitext(os.path.basename(input_file))[0] + ".hdf5"
     #Check whether the file exists
     if not os.path.isfile(directory+input_file):
         print "File " + input_file + " cannot be opened.  Exiting."
         return
     try:
         with h5py.File(directory+output_filename,'w') as output_hdf:
+            print "Writing to",directory+output_filename
             data = fstart_unpacking(input_file,directory)
             extra_PV_position = fread_file_header(data,output_hdf)
             fread_scan(data,output_hdf)
@@ -373,8 +389,8 @@ if __name__ =="__main__":
         frun_main()
     elif len(sys.argv) == 2:
         if sys.argv[1] == "-h":
-            print """Program to convert sscan MDA files to HDF5. /n
-                If one argument is given, assume it is a path to an MDA file. /n
+            print """Program to convert sscan MDA files to HDF5. \n
+                If one argument is given, assume it is a path to an MDA file. \n
                 The HDF5 file will be placed in the same directory.
                 Alternatively, give file and a directory in which to place HDF file.
                 """
