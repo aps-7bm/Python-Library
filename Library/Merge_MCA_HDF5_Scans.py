@@ -5,11 +5,34 @@ The array record will end up being of size (N_outer (pyEpics loop), N_inner (sca
 Daniel Duke, ES
 Started February 23, 2017
 
+Changelog:  
+    Feb 24, 2017: Added support for non matching array sizes to mergeDatasets & make3dMCAArrays.
+                  It pads with NaN on the right side of the array.
+                  This is useful when a scan gets aborted or scans of unequal length are merged.
+
 """
 
 import h5py, sys, os
 import numpy as np
 
+# Add new array ds to array ds_existing.
+# Expand or pad with NaN where sizes don't match.
+def combineArrays(ds_existing, ds):
+    # Merge to new version
+    if ds_existing.shape[-1] == len(ds):
+        # Size matches!
+        ds_new = np.vstack((ds_existing,ds[...]))
+    elif ds_existing.shape[-1] >  len(ds):
+        # new data smaller than expected
+        padding = np.tile(np.nan,np.abs(ds_existing.shape[-1] - len(ds)))
+        ds_new = np.vstack((ds_existing, np.hstack(( ds[...], padding ))))
+    elif ds_existing.shape[-1] < len(ds):
+        # new data larger than expected
+        padding = np.tile(np.nan,(ds_existing.shape[0],np.abs(ds_existing.shape[-1] - len(ds))))
+        ds_existing = np.vstack(( ds_existing, padding ))
+        ds_new = np.vstack((ds_existing,ds[...]))
+
+    return ds_new
 
 # Merge h5py dataset "ds" into h5py container "dest".
 # Preserves variable attributes by indexing them with an integer if necessary.
@@ -25,8 +48,8 @@ def mergeDatasets(ds,dest):
         ds_existing_attrs = dict(dest[ds.name].attrs)
         del dest[ds.name]
         
-        # Merge to new version
-        ds_new = np.vstack((ds_existing,ds[...]))
+        # Merge arrays
+        ds_new = combineArrays(ds_existing, ds)
         
         # Create new destination dataset with compression ON
         ds_new_obj=dest.create_dataset(ds.name,data=ds_new,compression='gzip',compression_opts=4)
@@ -151,17 +174,21 @@ def make3dMCAArrays(dest, groups):
     
     # Loop through arrays inside each group
     for dsname in dest[groups[0]].keys():
-        orig_shape = dest[groups[0]+'/'+dsname].shape
-        dtype = dest[groups[0]+'/'+dsname].dtype
+        # Find group with biggest array
+        totalArrSz = [np.product(dest[groups[j]+'/'+dsname].shape) for j in range(len(groups))]
+        j = np.where(totalArrSz == np.max(totalArrSz))[0][0]
+        orig_shape = dest[groups[j]+'/'+dsname].shape
+        dtype = dest[groups[j]+'/'+dsname].dtype
         new_shape = tuple(np.hstack((orig_shape[0],len(groups),orig_shape[1:])).astype(int))
         print "\tMerging",dsname,new_shape,dtype
         ds_new = dest.create_dataset('mca_'+dsname,shape=new_shape,dtype=dtype,\
                                      compression='gzip',compression_opts=4)
-                                     
+        if not 'S' in str(dtype): ds_new[...]=np.nan # fill numeric arrays with NaN in empty places
+        
         # Loop through source groups. Keep indexing same as for positionerValues!
         for i in range(len(groups)):
             copy_from = dest[groups[i]+'/'+dsname][...]
-            ds_new[:,i,...]=copy_from
+            ds_new[:copy_from.shape[0],i,...]=copy_from # Allow variable number of points in scans in files, pad with NaN on RHS.
 
             # Copy attribute
             for a in dest[groups[i]+'/'+dsname].attrs:
