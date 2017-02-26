@@ -9,6 +9,7 @@ Changelog:
     Feb 24, 2017: Added support for non matching array sizes to mergeDatasets & make3dMCAArrays.
                   It pads with NaN on the right side of the array.
                   This is useful when a scan gets aborted or scans of unequal length are merged.
+    Feb 25, 2017: Bug fix in combineArrays
 
 """
 
@@ -29,7 +30,7 @@ def combineArrays(ds_existing, ds):
     elif ds_existing.shape[-1] < len(ds):
         # new data larger than expected
         padding = np.tile(np.nan,(ds_existing.shape[0],np.abs(ds_existing.shape[-1] - len(ds))))
-        ds_existing = np.vstack(( ds_existing, padding ))
+        ds_existing = np.hstack(( ds_existing, padding ))
         ds_new = np.vstack((ds_existing,ds[...]))
 
     return ds_new
@@ -122,7 +123,7 @@ def collapseConstantAttrArrays(name, obj):
     if 'from_group_attribute' in obj.attrs:
         if obj.attrs['from_group_attribute']==1:
             data=obj[...]
-            if np.all(data==data.ravel()[0]): # If all entries in array identical...
+            if len(np.unique(data))<2: # If all entries in array identical...
                 newname = ''.join(os.path.basename(name).split('attr_'))
                 if 'mca_' in name:
                     # If the attr array comes from the MCA record, put it with
@@ -136,7 +137,8 @@ def collapseConstantAttrArrays(name, obj):
                     # Otherwise store it at parent group level (ie Extra PVs group)
                     p=obj.parent
             
-                p.attrs[newname]=data.ravel()[0]
+                if len(data.shape)==1: p.attrs[newname]=data[0]
+                else: p.attrs[newname]=data[0,0]
                 obj.attrs['from_group_attribute']=-1 # flag for deletion
     return
 
@@ -149,7 +151,7 @@ def deleteFlaggedAttrArrays(h5obj):
         if isinstance(obj,h5py.Dataset):
             if 'from_group_attribute' in obj.attrs:
                 if obj.attrs['from_group_attribute']==-1:
-                    #print 'delete',obj.name
+                    #print '\tdeleting',obj.name
                     del h5obj[obj.name]
                     ndeleted+=1
         elif isinstance(obj,h5py.Group):
@@ -249,6 +251,12 @@ if __name__=='__main__':
     # We do this mainly because the heirarchy could get very messy without it.
     print "\nCleaning up..."
     hout.visititems(collapseConstantAttrArrays)
+
+    # Force file sync!
+    hout.close()
+    hout = h5py.File(outputFile,'a')
+
+    # Delete superfluous arrays 
     print "Collapsed %i attribute arrays with constant value" % deleteFlaggedAttrArrays(hout)
 
     hout.close()
