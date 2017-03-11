@@ -10,6 +10,7 @@ Changelog:
                   It pads with NaN on the right side of the array.
                   This is useful when a scan gets aborted or scans of unequal length are merged.
     Feb 25, 2017: Bug fix in combineArrays
+    Mar 11, 2017: Update sorting algorithm for key names for inner positioner
 
 """
 
@@ -34,6 +35,7 @@ def combineArrays(ds_existing, ds):
         ds_new = np.vstack((ds_existing,ds[...]))
 
     return ds_new
+
 
 # Merge h5py dataset "ds" into h5py container "dest".
 # Preserves variable attributes by indexing them with an integer if necessary.
@@ -190,7 +192,8 @@ def make3dMCAArrays(dest, groups):
         # Loop through source groups. Keep indexing same as for positionerValues!
         for i in range(len(groups)):
             copy_from = dest[groups[i]+'/'+dsname][...]
-            ds_new[:copy_from.shape[0],i,...]=copy_from # Allow variable number of points in scans in files, pad with NaN on RHS.
+            # Allow variable number of points in scans in files, pad with NaN on RHS.
+            ds_new[:copy_from.shape[0],i,...]=copy_from.copy()
 
             # Copy attribute
             for a in dest[groups[i]+'/'+dsname].attrs:
@@ -242,9 +245,13 @@ if __name__=='__main__':
         
         This part of the code can combined these groups into a single 3-D array.
     '''
-    groups = [ key for key in hout.keys() if '.VAL=' in key ]
+    groups = [ key for key in hout.keys() if '.VAL=' in key ] # positions to merge
+
     if len(groups) > 0:
         print "\nMerging inner scans: %i positions detected" % len(groups)
+        # Sorting
+        grpsort = np.argsort([ float(nm.split('=')[-1]) for nm in groups ])
+        groups = [ groups[i] for i in grpsort ]
         make3dMCAArrays(hout, groups)
 
     # Now go through the file and collapse any attribute arrays that are constant.
