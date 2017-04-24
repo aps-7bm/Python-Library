@@ -67,6 +67,17 @@ def fcreate_filename_list(file_nums,filename_prefix='7bmb1_',filename_suffix='.m
         filename_list[:] = [name for name in filename_list if os.path.isfile(name)]
     return filename_list
 
+def fcheck_files_exist(file_nums,filename_prefix='7bmb1_',filename_suffix='.mda',
+                    digits=4, path="/data/Data/SprayData/Cycle_2014_1/ISU_Point/"):
+    '''Creates filenames and checks to see if they exist.
+    Returns a list of those file numbers that do exist.
+    '''
+    return_list = []
+    for i_str in file_nums:
+        if os.path.isfile(path+fcreate_filename(i_str,filename_prefix,filename_suffix,digits)):
+            return_list.append(i_str)
+    return return_list
+
 def fcompute_absorption_coeff(ref_coeff,energy):
     '''Computes the absorption coefficient at a given energy
     (in keV) from the reference absorption coeff at 10 keV.

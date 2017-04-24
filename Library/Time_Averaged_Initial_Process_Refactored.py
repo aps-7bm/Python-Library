@@ -30,6 +30,11 @@ import ALK_Utilities as ALK
 import Radiography_Process
 import Normalization_Functions as nf
 import HDF_Collater as hc
+import logging
+
+#Set up logging
+logger = logging.getLogger('Time_Averaged_Processing_Refactored')
+logger.addHandler(logging.NullHandler())
 
 #We will likely use the path multiple times.  Make this a module variable.
 file_path = "/data/Data/SprayData/Cycle_2014_7/ISU_Point/"
@@ -56,6 +61,7 @@ def fconvert_files_to_hdf5(file_nums, mca_saving = True,reprocess_existing_hdf=T
     Checks whether the file is from a multidimensional scan and, if so, collates it.
     '''
     #Create a list of file names
+    file_nums = ALK.fcheck_files_exist(file_nums, prefix, MDA_suffix, digits, file_path)
     filename_list = ALK.fcreate_filename_list(file_nums, prefix,
                                               MDA_suffix, digits, file_path, check_exist=True)
     #Create a list of the HDF5 file names that we would have after conversion
@@ -63,14 +69,15 @@ def fconvert_files_to_hdf5(file_nums, mca_saving = True,reprocess_existing_hdf=T
                                               HDF_suffix, digits, file_path, check_exist=False)
     #Loop through file names.  We already checked for existence of mda files.
     if not filename_list:
-        print "No valid filenames found for HDF5 conversion."
+        logger.error("No valid filenames found for HDF5 conversion.")
     for f_name, hdf_name in zip(filename_list,hdf_filename_list):
+        logger.debug("Processing file " + f_name)
         #Check if the HDF5 file exists if we don't want to overwrite
         if not reprocess_existing_hdf:
             if os.path.isfile(hdf_name):
-                print "File " + os.path.split(hdf_name)[-1] + " exists already.  Skipping."
+                logger.info("File " + os.path.split(hdf_name)[-1] + " exists already.  Skipping.")
                 continue
-        print f_name
+        
         
         m2h.frun_main(os.path.split(f_name)[-1],file_path,mca_saving)
         #If the file is multidimensional, run HDF_Collater
@@ -80,7 +87,7 @@ def fconvert_files_to_hdf5(file_nums, mca_saving = True,reprocess_existing_hdf=T
             #If multidimensional, collate
             if (not mca_saving and rank > 1) or rank > 2:
                 hc.fcollate_file(hdf_name,'',row_var_name)
-        print "File " + os.path.split(f_name)[-1] + " converted to HDF5 successfully."
+        logger.info("File " + os.path.split(f_name)[-1] + " converted to HDF5 successfully.")
     
 def fbatch_analyze_radiography(file_nums,dark_compute=False,dark_nums=[],abs_coeff=1,units=None):
     #If we are computing dark currents, do so
@@ -263,7 +270,7 @@ def frun_radiography_only(file_nums,ref_file_nums=None,dark_compute=False,dark_n
         abs_coeff: absorption coefficient to be used for radiography analysis
     '''
     #Convert to HDF5.  Do both regular files and dark files
-    print "Converting to HDF5"
+    logger.info("Converting to HDF5")
     fconvert_files_to_hdf5(file_nums+dark_nums)
     #Analyze for radiography
     fbatch_analyze_radiography(file_nums,dark_compute,dark_nums,abs_coeff)
