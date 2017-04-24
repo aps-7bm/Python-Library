@@ -9,7 +9,7 @@ Started: June 8, 2016
 import ArrayBin_Cython as arc
 import numpy as np
 import scipy.stats
-import scipy.signal.correlate
+import scipy.signal
 import matplotlib.pyplot as plt
 bin_time = 153e-9         #Time between bunches in 24 bunch mode at APS as of 2015
 bunches = 24
@@ -150,12 +150,29 @@ def frefine_time_estimate(input_array,delta_t,pulse_time):
     #Compute the number of points (float) per cycle of the periodic signal
     pulse_points = pulse_time / delta_t
     #Perform cross-correlation between initial pulse_points points and final 2 * pulse_points
-    correlation_matrix = scipy.signal.correlate(input_array[:int(pulse_points)], input_array[:-2 * int(pulse_points)])
-    print correlation_matrix
-    plt.plot(input_array[:int(pulse_points)],'r')
-    plt.plot(input_array[:-2 * int(pulse_points)],'g')
-    plt.show()
-    
+    correlation_matrix = scipy.signal.correlate(input_array[-2 * int(pulse_points):],input_array[:int(pulse_points)], 'valid')
+    #Compute where this means the best overlap is found
+    points_between = input_array.shape[0] - 2 * int(pulse_points) + np.argmax(correlation_matrix)
+    #Refine the time estimate
+    num_cycles = np.rint(points_between / pulse_points)
+    return float(points_between) / float(num_cycles) * float(delta_t)
+
+def frefine_time_estimate_staged(input_array,delta_t,pulse_time,fraction=0.02):
+    '''Takes a periodic signal and computes an accurate time per pulse.
+    Based on cross-correlation of signal at beginning to the end.
+    Performs frefine_time_estimate twice, once on a short snippet of the signal,
+    once on a longer snippet in case number of pulses is greater than
+    the fractional error in the time estimate, such that we might be fooled
+    about how many pulses are in the signal.
+    Inputs:
+    input_array: numpy array of the input periodic signal
+    delta_t: time period between measurement points in the original array.
+    pulse_time: Initial estimate of the time between pulses.
+    fraction: fraction of the signal to use for the first iteration.
+    '''
+    num_initial_points = int(input_array.shape[0] * fraction)
+    new_pulse_time = frefine_time_estimate(input_array[:num_initial_points],delta_t,pulse_time)
+    return frefine_time_estimate(input_array,delta_t,new_pulse_time)
 
 def fread_signal_direct(input_array,delta_t,pulse_time=None,repeat_num=None,start_time=0):
     """Function to read in data directly
