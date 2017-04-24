@@ -9,7 +9,8 @@ Started: June 8, 2016
 import ArrayBin_Cython as arc
 import numpy as np
 import scipy.stats
-
+import scipy.signal.correlate
+import matplotlib.pyplot as plt
 bin_time = 153e-9         #Time between bunches in 24 bunch mode at APS as of 2015
 bunches = 24
 
@@ -138,6 +139,24 @@ def fbin_signal_fixed_time(input_array,delta_t,pulse_time=None,repeat_num=None,s
     #Return both the binned array and the pulse time
     return (output_data,pulse_time,start_time)
 
+def frefine_time_estimate(input_array,delta_t,pulse_time):
+    '''Takes a periodic signal and computes an accurate time per pulse.
+    Based on cross-correlation of signal at beginning to the end.
+    Inputs:
+    input_array: numpy array of the input periodic signal
+    delta_t: time period between measurement points in the original array.
+    pulse_time: Initial estimate of the time between pulses.
+    '''
+    #Compute the number of points (float) per cycle of the periodic signal
+    pulse_points = pulse_time / delta_t
+    #Perform cross-correlation between initial pulse_points points and final 2 * pulse_points
+    correlation_matrix = scipy.signal.correlate(input_array[:int(pulse_points)], input_array[:-2 * int(pulse_points)])
+    print correlation_matrix
+    plt.plot(input_array[:int(pulse_points)],'r')
+    plt.plot(input_array[:-2 * int(pulse_points)],'g')
+    plt.show()
+    
+
 def fread_signal_direct(input_array,delta_t,pulse_time=None,repeat_num=None,start_time=0):
     """Function to read in data directly
     Inputs:
@@ -150,4 +169,4 @@ def fread_signal_direct(input_array,delta_t,pulse_time=None,repeat_num=None,star
     #Compute the start point for the integration
     start_point = np.rint(start_time / delta_t)
     #Return the input array 
-    return (input_array[start_time:],pulse_time,start_time)
+    return (input_array[start_point:],pulse_time,start_point)
