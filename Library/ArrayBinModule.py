@@ -177,11 +177,11 @@ def frefine_time_estimate_staged(input_array,delta_t,pulse_time,fraction=0.02):
 def fread_signal_direct(input_array,delta_t,pulse_time=None,repeat_num=None,start_time=0):
     """Function to read in data directly
     Inputs:
-    coord_object: readdatagrabber.py DataGrabberCoordinate object to be processed
-    descriptor: UserDescription value for the channel we want
+    input_array: numpy array with raw data
+    pulse_time,repeat_num: dummy inputs to match other methods in this module.
+    start_time: time of first point to be used in the new array.
     Outputs:
-    bunch_removed_output: binned signal with bunch charge variations removed
-    pulse_time: delta t between points
+    tuple of numpy array of data starting at start_point, pulse_time, start_point
     """   
     #Compute the start point for the integration
     start_point = np.rint(start_time / delta_t)
