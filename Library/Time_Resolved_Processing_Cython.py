@@ -38,7 +38,7 @@ file_path = 'home/akastengren/data/SprayData/Cycle_2015_1/Radiography/'
 channels = []
 pulse_time = 153e-9         #Time between bunches in 24 bunch mode at APS as of 2015
 start_time = 0              #Time at which to start integrations
-num_processors = 6
+num_processors = 8
 replicated = True
 digits = 4
 prefix = 'Scan_'
@@ -49,6 +49,10 @@ location_keys = ("X","Y")
 write_datatype = 'f4'
 exclude_groups = []
 pulsed_signal = True   #If True, signals are pulsed.
+
+#Set up logging
+logger = logging.getLogger('Time_Resolved_Processing_Cython')
+logger.addHandler(logging.NullHandler())
 
 class ChannelInfo():
     '''Object to hold parameters for reading in a DataGrabber channel.
@@ -72,6 +76,7 @@ class ChannelInfo():
         self.dark_value = 0
         self.pulse_time_base = pulse_time_base
         self.temp_data = None
+        logger.info("ChannelInfo object created with description " + desc_name)
         
 class LocationInfo():
     '''Class to store information about a given location.  No methods.
@@ -109,6 +114,7 @@ def fparse_headers(dg_headers):
                 for channel in coord.channels:
                     channel_name = str(channel.channel_header["UserDescription"])
                     record_length = int(channel.channel_header['RecordLength'])
+                    logger.debug("Channel name " + channel_name)
                     #Make sure we are tracking maximum record length
                     if not loc_info.dataset_sizes[channel_name] or record_length > loc_info.dataset_sizes[channel_name]:
                         loc_info.dataset_sizes[channel_name] = record_length
@@ -118,9 +124,12 @@ def fparse_headers(dg_headers):
             new_loc = LocationInfo()
             new_loc.header_coord_objects.append(coord)
             new_loc.location_values = key_values
+            print("New location found: " + str(new_loc.location_values))
+            
             #Find the channels within this group and their sizes
             for channel in coord.channels:
                 channel_name = str(channel.channel_header["UserDescription"])
+                logger.debug("Channel name " + channel_name)
                 new_loc.dataset_sizes[channel_name] = int(channel.channel_header['RecordLength']) 
             location_info_list.append(new_loc)
     return location_info_list 
@@ -164,6 +173,8 @@ def fread_channel_data(coord_obj,channel_obj,update_pulse_info=False):
     #Pick the appropriate coordinate, get channel with descriptor in it
     for channel in coord_obj.channels:
         if channel.channel_header["UserDescription"]==channel_obj.desc_name: 
+            logger.debug("Processing channel " + channel_obj.desc_name)
+            global pulse_time, start_time
             #Read in the channel data
             channel.fread_data_volts()
             #Get the delta_t for these data
@@ -173,7 +184,9 @@ def fread_channel_data(coord_obj,channel_obj,update_pulse_info=False):
                                                             pulse_time,channel_obj.repeat_num, start_time)
             #If desired, update the pulse time and start_time
             if update_pulse_info:
-                global pulse_time, start_time
+                logger.info("Using channel " + str(channel_obj.desc_name + " to update timing."))
+                logger.info("Pulse time updated to " + str(new_pulse_time))
+                logger.info("Start time updated to " + str(new_start_time))
                 pulse_time = new_pulse_time
                 start_time = new_start_time
             #Delete the channel data to conserve memory
@@ -189,17 +202,20 @@ def ffind_dark_current(dark_num,directory=None):
         directory = file_path
     #If there is no valid dark file, just return
     if not dark_num:
+        logger.info("No dark file number provided, so skipping dark current calculation.")
         return
     #Read in headers
     filename = ALK.fcreate_filename(dark_num,prefix,suffix,digits)
+    logger.info("Dark filename = " + filename)
+    logger.info("Dark filename = " + directory + filename)
     if not os.path.isfile(directory+filename):
-        print "Dark file doesn't exist.  Returning."
+        logger.error("Dark file doesn't exist.  Returning.")
         return
     #Read in the header information
     try:
         header_data = rdg.fread_headers(directory+filename)
     except IOError:
-        print "Problem reading file " + filename
+        logger.error("Problem reading file " + filename)
         return
     
     #Loop through the coordinates measured
@@ -217,11 +233,11 @@ def ffind_dark_current(dark_num,directory=None):
             #Delete channel data to conserve memory and break loop: we found our channel
             del(chan.data)
             
-     #Divide by the number or coordinates to get the right dark value
+    #Divide by the number or coordinates to get the right dark value
     for chinfochannel in channels:
         chinfochannel.dark_value /= float(len(header_data))  
         print chinfochannel.desc_name + " " + str(chinfochannel.dark_value) 
-    print str(len(header_data) + 1) + " coordinates processed for dark current."
+    logger.info(str(len(header_data) + 1) + " coordinates processed for dark current.")
     return
 
 def fcreate_datasets_channels(hdf_group,max_replicates,num_locations):
@@ -242,8 +258,10 @@ def fcreate_datasets_channels(hdf_group,max_replicates,num_locations):
         if max_replicates > 1:
             hdf_group.create_dataset(chinfochannel.new_name,shape=(num_locations,c_size,max_replicates), dtype=write_datatype)
             hdf_group[chinfochannel.new_name].dims[2].label = 'Replicates'
+            logger.info("Created 3-dimensional HDF5 dataset " + chinfochannel.new_name)
         else:
             hdf_group.create_dataset(chinfochannel.new_name,shape=(num_locations,c_size), dtype=write_datatype)
+            logger.info("Created 2-dimensional HDF5 dataset " + chinfochannel.new_name)
         #Label the dimensions of the datasets
         hdf_group[chinfochannel.new_name].dims[0].label = 'Location'
         hdf_group[chinfochannel.new_name].dims[1].label = 'Time'
@@ -271,7 +289,7 @@ def fparse_dictionary_numeric_string(input_dict):
         except ValueError:
             string_output.append(key)
         except TypeError:
-            print "Value = " + str(value)
+            logger.error("Problem parsing dictionary: value = " + str(value))
             raise TypeError
     #Find the maximum length of a string
     max_string_len = max([len(x) for x in string_output])
@@ -292,15 +310,19 @@ def fcreate_datasets_coord_header(hdf_group,coord_header,max_replicates,num_loca
     if replicated:
         for numeric_key in numeric_header_keys:
             hdf_group.create_dataset(numeric_key,shape=(num_locations,max_replicates),dtype=write_datatype)
+            logger.info("Created HDF5 group for numerical header dataset " + numeric_key)
         #Do the same for coordinate header values that are strings
         for string_key in string_header_keys:
             hdf_group.create_dataset(string_key,shape=(num_locations,max_replicates),dtype=dtype_string)
+            logger.info("Created HDF5 group for string header dataset " + string_key)
     else:
         for numeric_key in numeric_header_keys:
             hdf_group.create_dataset(numeric_key,shape=(num_locations,),dtype=write_datatype)
+            logger.info("Created HDF5 group for numerical header dataset " + numeric_key)
         #Do the same for coordinate header values that are strings
         for string_key in string_header_keys:
             hdf_group.create_dataset(string_key,shape=(num_locations,),dtype=dtype_string)
+            logger.info("Created HDF5 group for string header dataset " + string_key)
     return numeric_header_keys, string_header_keys
 
 def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None):
@@ -311,14 +333,17 @@ def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None):
     """
     #Make the filename
     filename = ALK.fcreate_filename(file_num,prefix,suffix,digits)
-    print filename
     #Set the directory and write_filename to reasonable defaults if they aren't specified
     if not directory:
         directory = file_path
     if not write_filename:
         write_filename = filename.split('.')[0] + '.hdf5'
+    print("Reading from DataGrabber filename " + directory + filename)
+    
+    logger.info("Writing to HDF5 file " + directory + filename)
     #Bail out if the file doesn't exist
     if not os.path.isfile(directory+filename):
+        print("file doesn't exist.")
         return
     #Open an HDF5 file to save the data.
     with h5py.File(directory+write_filename,'w') as write_file:
@@ -326,8 +351,9 @@ def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None):
         try:
             headers = rdg.fread_headers(directory+filename)
         except IOError:
-            print "Problem reading file " + filename
+            print("Problem reading file " + filename)
             return
+        print(str(len(headers)))
         #Parse through these header data to find locations and number of replicates
         location_info_list = fparse_headers(headers) 
         #Find the maximum number of replicates
@@ -337,10 +363,14 @@ def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None):
                     
         #Lets see how the calculations worked.
         for loc_info in location_info_list:
-            print "Replicates = " + str(loc_info.fget_num_replicates()) + " at location " + str(loc_info.location_values)
+            print("Replicates = " + str(loc_info.fget_num_replicates()) + " at location " + str(loc_info.location_values) + ", file " + filename)
+            logger.info("Replicates = " + str(loc_info.fget_num_replicates()) + " at location " + str(loc_info.location_values) + ", file " + filename)
             
         #Find dark currents: only do this once
-        ffind_dark_current(dark_file_num)
+        for chinfo in channels:
+            if chinfo.dark_value == None:
+                logger.info("Finding dark currents from file number " + str(dark_file_num))
+                ffind_dark_current(dark_file_num)
    
         #Process the first coordinate to update pulse time and get the sizes of the arrays
         fread_coordinate_data(headers[0],True)
@@ -355,11 +385,11 @@ def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None):
         numeric_keys, string_keys = fcreate_datasets_coord_header(write_file,
                                                 location_info_list[0].header_coord_objects[0].coordinate_header,
                                                 max_replicates,len(location_info_list))
-        print "Finished writing empty datasets"     #Feedback to user
+        logger.info("Finished writing empty datasets for file " + write_filename)     #Feedback to user
         
         #Loop through the LocationInfo objects
         for i,loc_info in enumerate(location_info_list):
-            print "Working on position # " + str(i) + ", position " + str(loc_info.location_values)
+            logger.info("Working on position # " + str(i) + ", position " + str(loc_info.location_values) + ", file " + write_filename)
             for (replicate_num,coordinate) in enumerate(loc_info.header_coord_objects):
                 fprocess_coordinate(coordinate,write_file,numeric_keys,
                             string_keys,i,replicate_num)
@@ -370,7 +400,7 @@ def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None):
 def fprocess_coordinate(coordinate,hdf_group,numeric_keys,string_keys,location_num,replicate):
     '''Processes one coordinate of the DataGrabber file.
     '''
-    print "Replicate # " + str(replicate)
+    logger.debug("Replicate # " + str(replicate))
     #Read the binned data.  This also performs dark subtraction
     fread_coordinate_data(coordinate,False)
     #Start looping through the ChannelInfo objects
@@ -408,6 +438,7 @@ def fbatch_conversion_multiprocess(file_nums):
     '''Class to batch process a large number of DataGrabber files.
     Should work with strings or numbers given in file_nums list.
     '''
+    print("Setting up multiprocessing of " + str(len(file_nums)) + " files.")
     #Make a JoinableQueue to hold tasks
     tasks = multiprocessing.JoinableQueue()
     #Set up processes
