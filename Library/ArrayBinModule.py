@@ -23,7 +23,7 @@ def fbin_signal_by_pulse(input_array,delta_t,pulse_time=None,repeat_num=1,start_
     delta_t: time period between measurement points in the original array.
     pulse_time: Initial estimate of the time between pulses.
     repeat_num: if the pulses have a repeating pattern, how many pulses per period.
-    start_point: where should integration begin.  Only here to match fbin_signal_fixed_time
+    start_time: where should integration begin.  Only here to match fbin_signal_fixed_time
     Outputs:
     output_data: binned signal 
     pulse_time: updated measurement of the time between pulses
@@ -128,7 +128,7 @@ def fbin_signal_fixed_time(input_array,delta_t,pulse_time=None,repeat_num=None,s
     if not repeat_num:
         repeat_num = bunches
     #Compute the number of points (float) per bin
-    pulse_duration_points = bin_time / delta_t
+    pulse_duration_points = pulse_time / delta_t
     #Compute the start point for the integration
     start_point = np.rint(start_time / delta_t)
     #Perform integration with Cython code
