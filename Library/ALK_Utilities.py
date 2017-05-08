@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg
 from socket import gethostname
+import logging
 
 def fwrite_HDF_dataset(hdf_group,name,input_data,attributes=None,save_old_attrs=False,return_dset=False):
     '''Writes a dataset to the input HDF5 group.  Checks if the dataset already exists,
@@ -234,6 +235,30 @@ def ffind_parabola_peak(x_vals,y_vals):
         y[i] = y_vals[i]
     coeff = scipy.linalg.solve(A,y)
     return -coeff[1]/2.0/coeff[0]
+
+def fstart_logging(logger_name,filename=None,logging_level=logging.DEBUG):
+    '''Sets up logging in a module with a given name and log file name.
+    Inputs:
+    logger_name: name of this root logger
+    filename: name of the log file to be used.  Default None.
+    logging_level: level of logging to use
+    Returns: logger instance
+    '''
+    #Set up logging
+    logger = logging.getLogger(logger_name)
+    #Set level of detail to be given
+    logger.setLevel(logging_level)
+    # create console handler and set level to debug
+    if not filename:
+        filename = logger_name + '.log'
+    ch = logging.FileHandler(filename,'w')
+    ch.setLevel(logging_level)
+    
+    # Set logging format
+    formatter = logging.Formatter('%(asctime)s - %(name)s - line %(lineno)d - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    return logger
                 
 if __name__ == '__main__':
 #     directory = fcorrect_path_start()+'SprayData/Cycle_2014_2/AFRL_Edwards/'  
