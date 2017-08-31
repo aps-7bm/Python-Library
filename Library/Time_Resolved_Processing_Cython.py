@@ -34,7 +34,8 @@ from __builtin__ import TypeError
 import os.path
 import logging
 
-file_path = 'home/akastengren/data/SprayData/Cycle_2015_1/Radiography/'
+read_file_path = 'home/akastengren/data/SprayData/Cycle_2015_1/Radiography/'
+write_file_path = read_file_path
 channels = []
 pulse_time = 153e-9         #Time between bunches in 24 bunch mode at APS as of 2015
 start_time = 0              #Time at which to start integrations
@@ -124,7 +125,7 @@ def fparse_headers(dg_headers):
             new_loc = LocationInfo()
             new_loc.header_coord_objects.append(coord)
             new_loc.location_values = key_values
-            print("New location found: " + str(new_loc.location_values))
+            logger.debug("New location found: " + str(new_loc.location_values))
             
             #Find the channels within this group and their sizes
             for channel in coord.channels:
@@ -199,14 +200,25 @@ def ffind_dark_current(dark_num,directory=None):
     """
     #Use the default directory unless one is give
     if not directory:
-        directory = file_path
+        directory = read_file_path
     #If there is no valid dark file, just return
     if not dark_num:
         logger.info("No dark file number provided, so skipping dark current calculation.")
         return
+    
+    #Figure out if we've already processed this one.  If so, use it
+    filename = ALK.fcreate_filename(dark_num,prefix,suffix,digits)
+    hdf_filename = filename.split('.')[0] + '.hdf5'
+    if os.path.isfile(write_file_path + hdf_filename):
+        logger.info('Dark current file already processed.')
+        write_hdf = h5py.File(write_file_path+hdf_filename,'r')
+        for chinfochannel in channels:
+            chinfochannel.dark_value = float(write_hdf.attrs[chinfochannel.desc_name])  
+            print(chinfochannel.desc_name + " " + str(chinfochannel.dark_value)) 
+        write_hdf.close()
+        return
     #Read in headers
     filename = ALK.fcreate_filename(dark_num,prefix,suffix,digits)
-    logger.info("Dark filename = " + filename)
     logger.info("Dark filename = " + directory + filename)
     if not os.path.isfile(directory+filename):
         logger.error("Dark file doesn't exist.  Returning.")
@@ -217,7 +229,6 @@ def ffind_dark_current(dark_num,directory=None):
     except IOError:
         logger.error("Problem reading file " + filename)
         return
-    
     #Loop through the coordinates measured
     for coordinate in header_data:
         #Loop through the ChannelInfo objects
@@ -232,11 +243,16 @@ def ffind_dark_current(dark_num,directory=None):
             chinfochannel.dark_value += np.mean(chan.data,dtype=np.float64)
             #Delete channel data to conserve memory and break loop: we found our channel
             del(chan.data)
-            
+    
+    #Make an HDF file to hold these data so we don't have to constantly reprocess them
+    write_file = h5py.File(write_file_path+hdf_filename,'w')
+        
     #Divide by the number or coordinates to get the right dark value
     for chinfochannel in channels:
         chinfochannel.dark_value /= float(len(header_data))  
-        print chinfochannel.desc_name + " " + str(chinfochannel.dark_value) 
+        print(chinfochannel.desc_name + " " + str(chinfochannel.dark_value)) 
+        write_file.attrs[chinfochannel.desc_name] = chinfochannel.dark_value
+    write_file.close()
     logger.info(str(len(header_data) + 1) + " coordinates processed for dark current.")
     return
 
@@ -289,7 +305,7 @@ def fparse_dictionary_numeric_string(input_dict):
         except ValueError:
             string_output.append(key)
         except TypeError:
-            logger.error("Problem parsing dictionary: value = " + str(value))
+            logging.error("Problem parsing dictionary: value = " + str(value))
             raise TypeError
     #Find the maximum length of a string
     max_string_len = max([len(x) for x in string_output])
@@ -310,19 +326,19 @@ def fcreate_datasets_coord_header(hdf_group,coord_header,max_replicates,num_loca
     if replicated:
         for numeric_key in numeric_header_keys:
             hdf_group.create_dataset(numeric_key,shape=(num_locations,max_replicates),dtype=write_datatype)
-            logger.info("Created HDF5 group for numerical header dataset " + numeric_key)
+            logging.info("Created HDF5 group for numerical header dataset " + numeric_key)
         #Do the same for coordinate header values that are strings
         for string_key in string_header_keys:
             hdf_group.create_dataset(string_key,shape=(num_locations,max_replicates),dtype=dtype_string)
-            logger.info("Created HDF5 group for string header dataset " + string_key)
+            logging.info("Created HDF5 group for string header dataset " + string_key)
     else:
         for numeric_key in numeric_header_keys:
             hdf_group.create_dataset(numeric_key,shape=(num_locations,),dtype=write_datatype)
-            logger.info("Created HDF5 group for numerical header dataset " + numeric_key)
+            logging.info("Created HDF5 group for numerical header dataset " + numeric_key)
         #Do the same for coordinate header values that are strings
         for string_key in string_header_keys:
             hdf_group.create_dataset(string_key,shape=(num_locations,),dtype=dtype_string)
-            logger.info("Created HDF5 group for string header dataset " + string_key)
+            logging.info("Created HDF5 group for string header dataset " + string_key)
     return numeric_header_keys, string_header_keys
 
 def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None):
@@ -335,27 +351,28 @@ def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None):
     filename = ALK.fcreate_filename(file_num,prefix,suffix,digits)
     #Set the directory and write_filename to reasonable defaults if they aren't specified
     if not directory:
-        directory = file_path
+        directory = read_file_path
     if not write_filename:
         write_filename = filename.split('.')[0] + '.hdf5'
-    print("Reading from DataGrabber filename " + directory + filename)
+    logger.info("Reading from DataGrabber filename " + directory + filename)
     
-    logger.info("Writing to HDF5 file " + directory + filename)
+    logger.info("Writing to HDF5 file " + write_file_path + write_filename)
     #Bail out if the file doesn't exist
     if not os.path.isfile(directory+filename):
-        print("file doesn't exist.")
+        logger.error("Read file " + directory + filename + " doesn't exist.")
         return
     #Open an HDF5 file to save the data.
-    with h5py.File(directory+write_filename,'w') as write_file:
+    with h5py.File(write_file_path+write_filename,'w') as write_file:
         #Read in the header information
         try:
             headers = rdg.fread_headers(directory+filename)
         except IOError:
-            print("Problem reading file " + filename)
+            logger.error("Problem reading file " + filename)
             return
-        print(str(len(headers)))
+        
         #Parse through these header data to find locations and number of replicates
         location_info_list = fparse_headers(headers) 
+        
         #Find the maximum number of replicates
         max_replicates = max([x.fget_num_replicates() for x in location_info_list])
         global replicated
@@ -367,10 +384,7 @@ def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None):
             logger.info("Replicates = " + str(loc_info.fget_num_replicates()) + " at location " + str(loc_info.location_values) + ", file " + filename)
             
         #Find dark currents: only do this once
-        for chinfo in channels:
-            if chinfo.dark_value == None:
-                logger.info("Finding dark currents from file number " + str(dark_file_num))
-                ffind_dark_current(dark_file_num)
+        ffind_dark_current(dark_file_num)
    
         #Process the first coordinate to update pulse time and get the sizes of the arrays
         fread_coordinate_data(headers[0],True)
@@ -385,11 +399,11 @@ def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None):
         numeric_keys, string_keys = fcreate_datasets_coord_header(write_file,
                                                 location_info_list[0].header_coord_objects[0].coordinate_header,
                                                 max_replicates,len(location_info_list))
-        logger.info("Finished writing empty datasets for file " + write_filename)     #Feedback to user
+        logger.info("Finished writing empty datasets")     #Feedback to user
         
         #Loop through the LocationInfo objects
         for i,loc_info in enumerate(location_info_list):
-            logger.info("Working on position # " + str(i) + ", position " + str(loc_info.location_values) + ", file " + write_filename)
+            logger.info("Working on position # " + str(i) + ", position " + str(loc_info.location_values) + " file " + filename)
             for (replicate_num,coordinate) in enumerate(loc_info.header_coord_objects):
                 fprocess_coordinate(coordinate,write_file,numeric_keys,
                             string_keys,i,replicate_num)
