@@ -28,6 +28,12 @@ import Projection_Fit as pf
 from scipy import optimize
 from scipy import interpolate
 import scipy.integrate
+import logging
+
+
+#Set up logging
+logger = logging.getLogger('Signal_Trapping_Complete')
+logger.addHandler(logging.NullHandler())
 
 class SigTrapData():
     '''Class to hold the raw and fitting data for a material.
@@ -127,9 +133,8 @@ class SigTrapData():
 
 def fprojection_corrected_fluor(fluor_obj):
     '''Calculates the projection data from the corrected 2D data.
-    Takes a list of SigTrapData objects for materials that attenuate the
-    incident beam and fluorescence.  Multiplies all sig_trap_2D and 
-    atten_2D arrays, then applies to the fluorescence data.
+    Uses linear interpolation to get data at original x points.
+    Results saved in y_corrected variable of input SigTrapData object.
     Inputs:
     fluor_obj: the SigTrapData object for the fluorescence variable
     '''
@@ -149,7 +154,7 @@ def fcompute_corrected_fluor_2D(fluor_obj,attenuation_objs,tol=0):
         Used to avoid divide by zero problems.
     '''
     if len(attenuation_objs) < 1:
-        print("No attenuation objects specified.  Returning.")
+        logger.error("No attenuation objects specified.  Returning.")
         
     #Make arrays in the fluor_obj for signal trapping and attenuation
     fluor_obj.atten_2D = np.zeros_like(fluor_obj.density_2D)
@@ -160,13 +165,15 @@ def fcompute_corrected_fluor_2D(fluor_obj,attenuation_objs,tol=0):
         #Interpolate the atten_2D back onto the (x,z) grid of fluor_obj
         interp_atten = interpolate.RectBivariateSpline(at_obj.x_vals,at_obj.z_vals,at_obj.atten_2D)
         fluor_obj.atten_2D += interp_atten(fluor_obj.x_vals,fluor_obj.z_vals)
+        logger.debug("Incident attenuation component added.")
         #Interpolate the sig_trap_2D back onto the (x,z) grid of fluor_obj
         interp_sig_trap = interpolate.RectBivariateSpline(at_obj.x_vals,at_obj.z_vals,at_obj.sig_trap_2D)
         fluor_obj.sig_trap_2D += interp_sig_trap(fluor_obj.x_vals,fluor_obj.z_vals)
+        logger.debug("Signal trapping component added.")
     #Divide the density_2D by the attenuation and signal trapping transmission arrays
     #to correct back to what the distribution should have been.
     fluor_obj.density_2D_corrected = fluor_obj.density_2D / np.exp(-fluor_obj.sig_trap_2D - fluor_obj.atten_2D)
-
+    
 def fcorrect_fluorescence_proj_data(fluor_obj,atten_objects):
     '''Perform the signal trapping and attenuation corrections for projection data.
     To use this code, form SigTrapData objects for the fluorescence and 
@@ -180,7 +187,7 @@ def fcorrect_fluorescence_proj_data(fluor_obj,atten_objects):
     '''
     #Check that we actually have attenuation objects.
     if len(atten_objects) < 1:
-        print("No attenuation objects specified.  Returning.")
+        logger.error("No attenuation objects specified.  Returning.")
     #Loop through the attenuation objects
     for at_obj in atten_objects:
         #Make a distribution from the projections
