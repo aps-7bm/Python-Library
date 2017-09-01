@@ -20,6 +20,11 @@ import xdrlib
 import numpy as np
 import os.path
 mca_saving = False
+import logging
+
+#Set up logging
+logger = logging.getLogger('m2h')
+logger.addHandler(logging.NullHandler())
 #
 def fparse_counted_string(data):
     '''Parses the data to get a counted string,
@@ -36,12 +41,13 @@ def fstart_unpacking(input_filename,directory):
     '''Takes the input filename and converts into
     a buffer suitable for the xdrlib to get started.
     '''
+    logger.info('Starting work on file ' + directory + input_filename)
     try:
         with open(directory+input_filename) as input_file:
             f = input_file.read()
             return xdrlib.Unpacker(f)
     except IOError:
-        print "Could not open input file: " + directory+input_filename
+        logger.error("Could not open input file: " + directory+input_filename)
         raise IOError
     
 def fread_file_header(data,output_hdf):
@@ -130,7 +136,7 @@ def fread_scan(data,hdf_group):
         detector_array = data.unpack_farray(requested_num_points,data.unpack_float)
         #If there are no current points, don't write a dataset
         if current_point and detector_meta[i]['Name'] not in hdf_group.keys():
-            print detector_meta[i]['Name']
+            logger.info('Detector name: ' + detector_meta[i]['Name'])
             hdf_group.create_dataset(detector_meta[i]['Name'],data=detector_array[:current_point])
     #
     #If this was the lowest rank, return now
@@ -169,7 +175,7 @@ def fread_scan(data,hdf_group):
                 subgroup = hdf_group.create_group(name)
                 print name
             except ValueError:
-                print "Problem making group " + str(name) + " for lower scan #" + str(j)
+                logger.error("Problem making group " + str(name) + " for lower scan #" + str(j))
                 raise ValueError 
             data.set_position(lower_scans_pointers[j])
             fread_scan(data,subgroup)
@@ -215,6 +221,7 @@ def fread_MCA_scan(data):
     #Read in the detector names and arrays
     for i in range(num_detectors):
         detector_names.append(detector_meta[i]["Name"])
+        logger.info('MCA Detector: ' + detector_meta[i]["Name"])
         detector_arrays.append(data.unpack_farray(requested_num_points,data.unpack_float)[:current_point])
     return (detector_names, detector_arrays)
     
@@ -322,7 +329,7 @@ def frun_main(input_file="7bmb1_0933.mda",directory="/data/Data/SprayData/Cycle_
     output_filename = input_file.split(".")[0] + ".hdf5"
     #Check whether the file exists
     if not os.path.isfile(directory+input_file):
-        print "File " + input_file + " cannot be opened.  Exiting."
+        logger.error("File " + input_file + " cannot be opened.  Exiting.")
         return
     try:
         with h5py.File(directory+output_filename,'w') as output_hdf:
@@ -333,10 +340,10 @@ def frun_main(input_file="7bmb1_0933.mda",directory="/data/Data/SprayData/Cycle_
             if extra_PV_position:
                 fread_extra_PVs(data,output_hdf)
     except IOError:
-        print "IOError: Output file could not be opened."
+        logger.error("IOError: Output file could not be opened.")
         return
     except EOFError:
-        print "Unexpectedly reached end of file.  File may be damaged."
+        logger.error("Unexpectedly reached end of file.  File may be damaged.")
         
 def frun_append(input_MDA = '7bmb1_0260.mda',MDA_directory = '/data/Data/SprayData/Cycle_2015_1/Spark/MDA_Files/',
                 output_HDF = 'Scan_260.hdf5',HDF_directory = '/data/Data/SprayData/Cycle_2015_1/Radiography/',
@@ -348,7 +355,7 @@ def frun_append(input_MDA = '7bmb1_0260.mda',MDA_directory = '/data/Data/SprayDa
     mca_saving = mca_saving_flag
     #Check whether the file exists
     if not os.path.isfile(MDA_directory+input_MDA):
-        print "File " + input_MDA + " cannot be opened.  Exiting."
+        logger.error("File " + input_MDA + " cannot be opened.  Exiting.")
         return
     try:
         with h5py.File(HDF_directory+output_HDF,'r+') as output_hdf:
@@ -359,10 +366,10 @@ def frun_append(input_MDA = '7bmb1_0260.mda',MDA_directory = '/data/Data/SprayDa
             if extra_PV_position:
                 fread_extra_PVs(data,output_hdf)
     except IOError:
-        print "IOError: Output file could not be opened."
+        logger.error("IOError: Output file could not be opened.")
         return
     except EOFError:
-        print "Unexpectedly reached end of file.  File may be damaged."
+        logger.error("Unexpectedly reached end of file.  File may be damaged.")
         
 if __name__ =="__main__":
     import sys
