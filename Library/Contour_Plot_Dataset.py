@@ -20,13 +20,30 @@ from matplotlib.colors import LinearSegmentedColormap
 file_path = '/data/Data/SprayData/Cycle_2014_2/AFRL_Edwards/'
 
 def fcontour_plot_dataset(file_path,hdf_file_name,x_variable,y_variable,z_variable,
-                          clims=None,num_levels=41):
+                          grid_on = False,**kwargs):
     '''Script to make a contour plot of a dataset from an HDF5 file of several
     scans combined.
+    Keyword arguments are either captured by this code or sent to the
+    tricontourf function.
+    Keywords handled by this code:
+    z_scale: multiplicative factor by with the z variable is multiplied.
+    title: title to put at the top of the figure
+    xlims,ylims: set limits on x and y extent of the figure
+    cticks: set colorbar ticks
+    ctick_labels: set labels on the colorbar ticks
+    z_label: label for the colorbar axis.  Defaults to z_variable
     '''
     #Create a new figure
-    plt.figure()
-    plt.suptitle(hdf_file_name + ': ' + z_variable)
+    plt.figure(figsize=[4,3],dpi=300)
+    if 'title' in kwargs.keys():
+        plt.suptitle(kwargs['title'])
+    plt.grid(grid_on)
+    #Tune the size
+    plt.subplots_adjust(left=0.2,right=0.82,bottom = 0.15, top = 0.95)
+    #Add in a multipliciative factor, if requested
+    z_scale = 1.
+    if 'z_scale' in kwargs.keys():
+        z_scale = float(kwargs['z_scale'])
     #Open file
     with h5py.File(file_path + hdf_file_name,'r') as hdf_file:
         #Mask off any NAN entries is x; indicates scan wasn't as wide as widest scan
@@ -35,17 +52,27 @@ def fcontour_plot_dataset(file_path,hdf_file_name,x_variable,y_variable,z_variab
         triang = tri.Triangulation(hdf_file[x_variable][mask],
                                    hdf_file[y_variable][mask])
         #Create contour plot
-        if clims:
-            contour_levels = np.linspace(clims[0],clims[1],num_levels)
-            plt.tricontourf(triang,hdf_file[z_variable][mask],contour_levels,extend='both')
-        else:
-            plt.tricontourf(triang,hdf_file[z_variable][mask],num_levels,extend='both')
+        plt.tricontourf(triang,hdf_file[z_variable][mask]*z_scale,**kwargs)
+        
         plt.xlabel(x_variable)
         plt.ylabel(y_variable)
+        if 'xlims' in kwargs.keys():
+            plt.xlim(kwargs['xlims'])
+        if 'ylims' in kwargs.keys():
+            plt.ylim(kwargs['ylims'])
+            
         cb = plt.colorbar()
-        cb.ax.set_ylabel(z_variable)
+        cb.ax.tick_params(labelsize=12)
+        if 'cticks' in kwargs.keys():
+            cb.set_ticks(kwargs['cticks'])
+        if 'z_label' in kwargs.keys():
+            cb.ax.set_ylabel(kwargs['z_label'])
+        if 'ctick_labels' in kwargs.keys():
+            cb.ax.set_yticklabels(kwargs['ctick_labels'])
+        else:
+            cb.ax.set_ylabel(z_variable)
 
-def fcontour_plot_set(file_path,filename,dataset_names,lims_dict = None,x='Axial',y='Transvese'):
+def fcontour_plot_set(file_path,filename,dataset_names,lims_dict = None,x='Axial',y='Transverse'):
     '''Creates a contour plot of a set of datasets.
     Inputs
     file_path: path to the directory holding the files
@@ -91,3 +118,25 @@ class nlcmap(LinearSegmentedColormap):
         #yi = stineman_interp(xi, self._x, self._y)
         yi = np.interp(xi, self._x, self._y)
         return self.cmap(yi, alpha)
+
+def ftest_code():
+    file_path = '/home/akastengren/data/Cycle_2013_2/Taitech_Reprocess/'
+    file_name = 'Scans_1675_1694.hdf5'
+    x_variable = 'X'
+    y_variable = 'Y'
+    z_variable = 'Water_Pathlength_mm'
+    fcontour_plot_dataset(file_path,file_name,x_variable,y_variable,z_variable,
+                          grid_on = False,z_scale=100,z_label='Scaled Water',
+                          ctick_labels = ['a','b','c'])
+    plt.show()
+    ticks = np.concatenate((np.linspace(0,0.006,7),np.linspace(0.01,0.1,10)))
+    nl_cmap = nlcmap(plt.cm.get_cmap('jet'),ticks)
+    fcontour_plot_dataset(file_path,file_name,x_variable,y_variable,z_variable,
+                          grid_on = False,levels = ticks,cmap=nl_cmap,extend='both',cticks=ticks,
+                          xlims = [-5,5],ylims=[0,10],z_scale=100,
+                          ctick_labels = ticks*100)
+    
+    plt.show()
+    
+if __name__ == '__main__':
+    ftest_code()
