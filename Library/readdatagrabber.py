@@ -45,7 +45,8 @@ def fread_headers(filename,record_length_key="RecordLength",
         #Read in a potential header.  Trap possible extra \n
         line = "a"
         while line!="":
-            line = dg_file.readline()
+            line = dg_file.readline().decode('ascii')
+            print(line)
             #If this is a good coordinate header, 
             if line.startswith(coord_start):
                 #Instantiate a DataGrabberCoordinate instance for this coordinate.
