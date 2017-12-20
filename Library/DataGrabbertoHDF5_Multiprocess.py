@@ -113,7 +113,7 @@ def fparse_dictionary_numeric_string(input_dict):
             if max_string_len < len(value):
                 max_string_len = len(value)
         except TypeError:
-            print "Value = " + str(value)
+            print("Value = " + str(value))
             raise TypeError
     return num_output,string_output,max_string_len
 
@@ -169,7 +169,7 @@ def fcreate_datasets_coord_header(hdf_group,coord_header,max_replicates,num_loca
     num_locations: number of locations
     '''
     #Create top_level datasets for any numeric values from the coordinate headers.  Use first coordinate as a guide.
-    print coord_header
+    print(coord_header)
     numeric_header_keys, string_header_keys, max_string_len = fparse_dictionary_numeric_string(coord_header)
     for numeric_key in numeric_header_keys:
         hdf_group.create_dataset(numeric_key,shape=(num_locations,max_replicates),dtype=write_datatype)
@@ -189,7 +189,7 @@ def fconvert_h5py_hdffile(dg_filename,write_file):
     try:
         headers = rdg.fread_headers(file_path+dg_filename)
     except IOError:
-        print "Problem reading file " + dg_filename
+        print("Problem reading file " + dg_filename)
         return
     #Parse through these header data to find locations and number of replicates
     location_info_list = fparse_headers(headers) 
@@ -198,8 +198,8 @@ def fconvert_h5py_hdffile(dg_filename,write_file):
         
     #Lets see how the calculations worked.
     for loc_info in location_info_list:
-        print str(loc_info.location_values)
-        print "Replicates = " + str(loc_info.replicates)
+        print(str(loc_info.location_values))
+        print("Replicates = " + str(loc_info.replicates))
     
     #Preallocate arrays in the HDF5 file from the channels
     fcreate_datasets_channels(write_file,channel_sizes,max_replicates,len(location_info_list))
@@ -208,18 +208,18 @@ def fconvert_h5py_hdffile(dg_filename,write_file):
     numeric_header_keys, string_header_keys = fcreate_datasets_coord_header(write_file,
                                             location_info_list[0].header_coord_objects[0].coordinate_header,
                                             max_replicates,len(location_info_list))
-    print "Finished writing empty datasets"     #Feedback to user
+    print("Finished writing empty datasets")     #Feedback to user
     
     #Loop through the LocationInfo objects
     for i,loc_info in enumerate(location_info_list):
-        print "Working on position # " + str(i) + ", position " + str(loc_info.location_values)
+        print("Working on position # " + str(i) + ", position " + str(loc_info.location_values))
         #Make arrays to hold all replicate channel data
         temp_array_dict = {}
         for channel,c_size in channel_sizes.items():
             temp_array_dict[channel] = np.zeros((c_size,max_replicates))
         #Loop through the header_coordinates in each group_info object
         for replicate,coord in enumerate(loc_info.header_coord_objects):
-            print "Replicate # " + str(replicate)
+            print("Replicate # " + str(replicate))
             #Loop through the header, writing numbers to the appropriate datasets
             for numeric_key in numeric_header_keys:
                 if coord.coordinate_header[numeric_key]:
@@ -321,7 +321,7 @@ def fbatch_conversion_serial(file_nums):
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
-        print "Code to convert DataGrabber files to HDF5 format."
+        print("Code to convert DataGrabber files to HDF5 format.")
     elif len(sys.argv) == 2:
         #Split input filename on period and change extension
         fconvert_file(sys.argv[1])

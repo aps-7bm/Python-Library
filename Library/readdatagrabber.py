@@ -116,7 +116,7 @@ def fprint_headers(filename,record_length_key="RecordLength",
             #If this is a good coordinate header, 
             if line.startswith(coord_start):
                 #Print this coordinate header
-                print line
+                print(line)
                 #Parse header into a dictionary.  Remove last two characters, which are /r/n.
                 coordinate_header = fparse_header_line(line[:-2])
                 #Figure out how many channels there are.
@@ -132,7 +132,7 @@ def fprint_headers(filename,record_length_key="RecordLength",
                         #Otherwise, read another line
                         line = dg_file.readline()
                     #Print the channel header to the console
-                    print "--- " + line
+                    print("--- " + line)
                     #Parse the header line into a dictionary. Remove last two characters, which are /r/n.
                     meta_data = fparse_header_line(line[:-2])
                     #Figure out how many bytes to skip.  
