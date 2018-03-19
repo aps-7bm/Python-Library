@@ -57,7 +57,7 @@ def fcreate_filename_list(file_nums,filename_prefix='7bmb1_',filename_suffix='.m
     '''Takes a list of file number, a prefix, a suffix, path, and # of digits,
     and makes a list of the file names.
     '''
-    print path
+    print(path)
     filename_list = []
     #Loop through the input string numbers, converting first to int, then to
     #correct number of digits as a string.
@@ -112,7 +112,7 @@ def fcorrect_path_start():
     elif host_name.endswith('aps.anl.gov'):
         return '/home/'
     else:
-        print "Unknown hostname.  Returning current directory."
+        print("Unknown hostname.  Returning current directory.")
         return os.getcwd() + '/'
     
 def fcompare_values(desired_value,search_values,tolerance=None):
@@ -173,11 +173,11 @@ def fplot_HDF_trace(file_path,file_name,plot_var,x_var,norms=None,
     if len(x_var) == 1:
         x_var = x_var * len(plot_var)
     elif not len(plot_var) == len(x_var):
-        print "Mismatch in lengths of plotting and absicca variables.  Exiting."
+        print("Mismatch in lengths of plotting and absicca variables.  Exiting.")
         return
     if norms:
         if not len(norms) == len(plot_var):
-            print "Mismatch in lengths of plotting and normalization lists."
+            print("Mismatch in lengths of plotting and normalization lists.")
             norms = [1.0] * len(plot_var)
     else:
         #If no normalization is given, just set it to unity.
@@ -225,7 +225,7 @@ def ffind_parabola_peak(x_vals,y_vals):
     '''
     #Make sure the lengths of the x_vals and y_vals arrays are each three
     if not len(x_vals) == 3 and len(y_vals) == 3:
-        print "Method ffind_parabola_peak requires exactly three x and y values."
+        print("Method ffind_parabola_peak requires exactly three x and y values.")
         return None
     #Make up the matrices for solving the system
     A = np.zeros((3,3))
@@ -268,7 +268,7 @@ if __name__ == '__main__':
 #                      ['Kr_Kalpha','Radiography'],
 #                      ['7bmb1:m26.VAL'],
 #                      [1000.0,1.0],y_lims=[0,0.01])  
-    print ffind_parabola_peak([-2.0,0,5.0],[26.0,4.0,54.0])
+    print(ffind_parabola_peak([-2.0,0,5.0],[26.0,4.0,54.0]))
     
 
         
