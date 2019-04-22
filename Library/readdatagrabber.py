@@ -25,6 +25,10 @@ import matplotlib.pyplot as plt
 import re
 import logging
 
+# Set up logging
+logger = logging.getLogger('readdatagrabber')
+logger.addHandler(logging.NullHandler())
+
 #Dictionary for converting datatype to number of bytes
 bytes_per_point = {"byte":1, "short":2, "int":4, "float":4, "long":8, "double":8}
 
@@ -38,7 +42,7 @@ def fread_headers(filename,record_length_key="RecordLength",
     file_data = []
     #Throw an IOError if the file doesn't exist
     if not os.path.isfile(filename):
-        logging.error("No such file exists: " + filename)
+        logger.error("No such file exists: " + filename)
         raise IOError
     """Loop through the DataGrabber file, saving headers."""
     with open(filename,'rb') as dg_file:
@@ -59,15 +63,15 @@ def fread_headers(filename,record_length_key="RecordLength",
                 #For each channel:
                 for i in range(num_channels):
                     #Read in potential header.
-                    line = dg_file.readline()
+                    line = dg_file.readline().decode('ascii')
                     while not(line.startswith(chan_start)):
                         #If we reach the end of the file here, this is a serious problem.
                         if line=="": 
-                            logging.error("Lost track of header for channel", i, ",\
+                            logger.error("Lost track of header for channel", i, ",\
                                     coordinate #", len(file_data))
                             return file_data
                         #Otherwise, read another line
-                        line = dg_file.readline()
+                        line = dg_file.readline().decode('ascii')
                     #If header is good, instantiate a new DataGrabberChannel object.
                     current_channel = DataGrabberChannel()
                     #Save filename for use in getting data in future.
@@ -83,7 +87,7 @@ def fread_headers(filename,record_length_key="RecordLength",
                     num_points = int(current_channel.channel_header[record_length_key])
                     #Skip the appropriate number of bytes.
                     dg_file.seek(num_points * num_bytes_per_point,1)
-        logging.info("Found ", len(file_data)," positions.")
+        logger.info("Found ", len(file_data)," positions.")
         return file_data
 
 def fparse_header_line(header,pair_delimit=" ",split_delimit="="):
@@ -106,14 +110,14 @@ def fprint_headers(filename,record_length_key="RecordLength",
     '''
     #Throw an IOError if the file doesn't exist
     if not os.path.isfile(filename):
-        logging.error("No such file exists: " + filename)
+        logger.error("No such file exists: " + filename)
         raise IOError
     """Loop through the DataGrabber file, saving headers."""
     with open(filename,'rb') as dg_file:
         #Read in a potential header.  Trap possible extra \n
         line = "a"
         while line!="":
-            line = dg_file.readline()
+            line = dg_file.readline().decode('ascii')
             #If this is a good coordinate header, 
             if line.startswith(coord_start):
                 #Print this coordinate header
@@ -125,13 +129,13 @@ def fprint_headers(filename,record_length_key="RecordLength",
                 #For each channel:
                 for i in range(num_channels):
                     #Read in potential header.
-                    line = dg_file.readline()
+                    line = dg_file.readline().decode('ascii')
                     while not(line.startswith(chan_start)):
                         #If we reach the end of the file here, this is a serious problem.
                         if line=="": 
-                            logging.error("Lost track of header for channel", i)
+                            logger.error("Lost track of header for channel", i)
                         #Otherwise, read another line
-                        line = dg_file.readline()
+                        line = dg_file.readline().decode('ascii')
                     #Print the channel header to the console
                     print("--- " + line)
                     #Parse the header line into a dictionary. Remove last two characters, which are /r/n.
@@ -205,7 +209,7 @@ class DataGrabberCoordinate():
             if channel.channel_header['UserDescription'] == descriptor:
                 return channel
         else:
-            logging.error("Error in fchannel_by_name: channel name not found: " + descriptor)
+            logger.error("Error in fchannel_by_name: channel name not found: " + descriptor)
             return None
     
     def fdisplay_excerpt(self,descriptor="PINDiode",end=False,num_points=1e4):
