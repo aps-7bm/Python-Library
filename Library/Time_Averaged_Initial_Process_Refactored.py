@@ -25,7 +25,7 @@ Instructions for use:
 import h5py
 import numpy as np
 import os.path
-import MDA2HDF5_Fluorescence as m2h
+import MDA2HDF5_Multi as m2h
 import ALK_Utilities as ALK
 import Radiography_Process
 import Normalization_Functions as nf
@@ -77,8 +77,7 @@ def fconvert_files_to_hdf5(file_nums, mca_saving = True,reprocess_existing_hdf=T
             if os.path.isfile(hdf_name):
                 logger.info("File " + os.path.split(hdf_name)[-1] + " exists already.  Skipping.")
                 continue
-        
-        
+
         m2h.frun_main(os.path.split(f_name)[-1],file_path,mca_saving)
         #If the file is multidimensional, run HDF_Collater
         if check_multidimensional:
@@ -102,10 +101,10 @@ def fbatch_analyze_radiography(file_nums,dark_compute=False,dark_nums=[],abs_coe
                                               digits, file_path, check_exist=True)
     #Loop through file names.  We already checked for existence.
     if not filename_list:
-        print "No valid filenames found for radiography analysis."
+        logger.error("No valid filenames found for radiography analysis.")
     for f_name in filename_list:
         fanalyze_radiography(f_name,abs_coeff,dark_dict,units)
-        print "File " + os.path.split(f_name)[-1] + " processed for radiography successfully."
+        logger.info("File " + os.path.split(f_name)[-1] + " processed for radiography successfully.")
 
 def fanalyze_radiography(f_name,abs_coeff=1,dark_dict={},units=None):
     '''Analyze time-averaged data from an HDF5 file converted from MDA format for
@@ -123,12 +122,12 @@ def fanalyze_radiography(f_name,abs_coeff=1,dark_dict={},units=None):
             I = hdf_file.get(PIN_variable+'_Multidimensional')[...]
             I0 = hdf_file.get(I0_variable+'_Multidimensional')[...]
         else:
-            print "Can't find the I and/or I0 datasets for file " + f_name
+            logger.error("Can't find the I and/or I0 datasets for file " + f_name)
             return
         
         #Make sure they are both the same size and both exist.
         if np.size(I) != np.size(I0):
-            print "Problem processing " + f_name + ": I and I0 sizes mismatched.  Skipping."
+            logger.error("Problem processing " + f_name + ": I and I0 sizes mismatched.  Skipping.")
             return
         #Fill the dark_dict with zeros if the dark values aren't there
         if not dark_dict.keys():
@@ -165,7 +164,7 @@ def fnormalize_radiography(file_nums,ref_file_nums=None):
                 hdf_file[radiography_name][...] = hdf_file[radiography_name][...]-ref_value
                 hdf_file[radiography_name].attrs['Normalized'] = 'True'
                 hdf_file[radiography_name].attrs['Norm_value'] = ref_value
-                print "File " + os.path.split(f_name)[-1] + " normalized successfully."
+                logger.info("File " + os.path.split(f_name)[-1] + " normalized successfully.")
     
         
 def ffind_dark_current(file_nums, variable_keys=None):
@@ -190,10 +189,10 @@ def ffind_dark_current(file_nums, variable_keys=None):
         with h5py.File(f_name,'r') as hdf_file:
             if ALK.fcheck_file_datasets(variable_keys):
                 for key in variable_keys:
-                    print key
+                    logger.debug(key)
                     dark_values[key].append(np.mean(hdf_file.get(key)[...]))
-                print "File " + os.path.split(f_name)[-1] + " analyzed for dark current successfully."
-    print dark_values
+                logger.info("File " + os.path.split(f_name)[-1] + " analyzed for dark current successfully.")
+    logger.debug(dark_values)
     #Average the values 
     for v_name in variable_keys:    
         dark_values[v_name] = np.mean(np.array(dark_values[v_name]))
@@ -230,8 +229,7 @@ def fanalyze_fluorescence(file_nums,process_attenuation=True,colocated=True):
                     fluor_dataset = hdf_file.get(value)
                     #Check that the dataset exists
                     if not fluor_dataset:
-                        print "Problem processing " + f_name + ": dataset " + value + " does not exist."
-                        print "Skipping this variable."
+                        logger.error("Problem processing " + f_name + ": dataset " + value + " does not exist.  Skipping")
                         continue
                     #If we don't want to correct for attenuation, change the rad_data and abs_coeff
                     if not process_attenuation:
@@ -252,8 +250,8 @@ def fanalyze_fluorescence(file_nums,process_attenuation=True,colocated=True):
                         ALK.fwrite_HDF_dataset(hdf_file,key,corrected_fluor,{"Processing":'Dead_time,I0,attenuation','Units':'Corrected counts'})
                     else:
                         ALK.fwrite_HDF_dataset(hdf_file,key,corrected_fluor,{"Processing":'Dead_time,I0','Units':'Corrected counts'})
-                    print "Finished processing fluorescence variable " + value + "."
-                print "File " + os.path.split(f_name)[-1] + " analyzed for fluorescence successfully."
+                    logger.info("Finished processing fluorescence variable " + value + ".")
+                logger.info("File " + os.path.split(f_name)[-1] + " analyzed for fluorescence successfully.")
     
 def frun_radiography_only(file_nums,ref_file_nums=None,dark_compute=False,dark_nums=[],
                           abs_coeff=1):
