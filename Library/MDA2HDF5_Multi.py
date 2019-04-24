@@ -24,6 +24,7 @@ import xdrlib
 import numpy as np
 import os.path
 import logging
+import glob
 
 # Set up logging
 logger = logging.getLogger('m2h')
@@ -332,13 +333,30 @@ def frun_append(input_MDA='7bmb1_0260.mda', MDA_directory=None,
     except EOFError:
         logger.error("Unexpectedly reached end of file.  File may be damaged.")
 
+def fconvert_directory(input_directory = None):
+    '''Converts all MDA files in a given directory to HDF5.
+    Input
+    input_diretory: the directory on which to operate.  Default is current working directory.
+    '''
+    if input_directory is None:
+        input_directory = os.path.curdir + os.sep
+    print(input_directory)
+    if not os.path.isdir(input_directory):
+        logger.error("Directory " + input_directory + " does not exist.  Exiting.")
+        raise IOError
+    mda_file_list = glob.glob('*.mda')
+    print(mda_file_list)
+    for fname in mda_file_list:
+        print(fname)
+        frun_main(fname, input_directory)
+
 if __name__ == "__main__":
     import sys
     import os
 
     print(sys.argv)
     if len(sys.argv) == 1:
-        frun_main()
+        fconvert_directory()
     elif len(sys.argv) == 2:
         if sys.argv[1] == "-h":
             print("""Program to convert sscan MDA files to HDF5. /n
