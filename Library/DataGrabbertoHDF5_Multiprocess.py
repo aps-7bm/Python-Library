@@ -178,7 +178,6 @@ def fcreate_datasets_coord_header(hdf_group,coord_header,max_replicates,num_loca
     for string_key in string_header_keys:
         hdf_group.create_dataset(string_key,shape=(num_locations,max_replicates),dtype=dtype_string)
     return numeric_header_keys, string_header_keys
-
 def fconvert_h5py_hdffile(dg_filename,write_file):
     '''Convert DataGrabber file to HDF5.
     Input:
@@ -227,7 +226,7 @@ def fconvert_h5py_hdffile(dg_filename,write_file):
             #Write string datasets for string header data
             for string_key in string_header_keys:
                 if coord.coordinate_header[string_key]:
-                    write_file[string_key][i,replicate] = str(coord.coordinate_header[string_key])
+                    write_file[string_key][i,replicate] = np.string_(coord.coordinate_header[string_key])
             #Loop through the channels
             for channel in coord.channels:
                 channel_name = str(channel.channel_header["UserDescription"])
