@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="3991604c-e8ef-45fb-82f7-5e575496d2fa" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/Library/Time_Resolved_Processing_Cython.py" beforeDir="false" afterPath="$PROJECT_DIR$/Library/Time_Resolved_Processing_Cython.py" afterDir="false" />
+    </list>
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Library/Time_Resolved_Processing_Cython.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="500">
+              <caret line="215" column="17" selection-start-line="215" selection-start-column="12" selection-end-line="215" selection-end-column="17" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Library/ArrayBinModule.py">
+          <provider selected="true" editor-type-id="text-editor" />
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Library/Time_Averaged_Initial_Process_Refactored.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="3450">
+              <caret line="230" column="41" selection-start-line="230" selection-start-column="41" selection-end-line="230" selection-end-column="41" />
+              <folding>
+                <element signature="e#1079#1090#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/Library/MDA2HDF5_Multi.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="796">
+              <caret line="331" column="14" lean-forward="true" selection-start-line="331" selection-start-column="14" selection-end-line="331" selection-end-column="14" />
+              <folding>
+                <element signature="e#1222#1233#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>logging</find>
+      <find>print</find>
+      <find>os.path</find>
+    </findStrings>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$PROJECT_DIR$/Library/Time_Resolved_Processing_Cython.py" />
+        <option value="$PROJECT_DIR$/Library/Time_Averaged_Initial_Process_Refactored.py" />
+        <option value="$PROJECT_DIR$/Library/MDA2HDF5_Multi.py" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="x" value="252" />
+    <option name="y" value="127" />
+    <option name="width" value="2466" />
+    <option name="height" value="1735" />
+  </component>
+  <component name="ProjectView">
+    <navigator proportions="" version="1">
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="Library" type="b2602c69:ProjectViewProjectNode" />
+              <item name="Library" type="462c0819:PsiDirectoryNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
+      <pane id="Scope" />
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="last_opened_file_path" value="/net/s7data/export/SprayData/Cycle_2019_1/Naveed_GUP/Mono_Radiography" />
+    <property name="two.files.diff.last.used.file" value="/net/s7data/export/SprayData/Cycle_2019_1/Naveed_GUP/Mono_Radiography/Time_Resolved_Processing_Cython.py" />
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="3991604c-e8ef-45fb-82f7-5e575496d2fa" name="Default Changelist" comment="" />
+      <created>1555957412696</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1555957412696</updated>
+    </task>
+    <task id="LOCAL-00001" summary="Python 3 and logging fixes&#10;&#10;Small changes to enable use of Python 3&#10;Changed calls to logging to calls to logger to allow other&#10;code to actually see the logged messages from this code.">
+      <created>1555957504932</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1555957504932</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Python 3 and logging fixes&#10;&#10;Small changes to enable use of Python 3&#10;Changed calls to logging to calls to logger to allow other&#10;code to actually see the logged messages from this code.">
+      <created>1555966475447</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1555966475447</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Added function to MDA2HDF5_Multi to convert directory.&#10;&#10;Function fconvert_directory now will convert every MDA file&#10;in the given directory (default cwd) to HDF5.">
+      <created>1556116715341</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1556116715341</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
+    <servers />
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="252" y="127" width="2466" height="1735" extended-state="0" />
+    <layout>
+      <window_info id="Favorites" side_tool="true" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.25" />
+      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
+      <window_info anchor="bottom" id="Version Control" />
+      <window_info anchor="bottom" id="Python Console" />
+      <window_info anchor="bottom" id="Terminal" />
+      <window_info anchor="bottom" id="Event Log" side_tool="true" />
+      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Find" order="1" />
+      <window_info anchor="bottom" id="Run" order="2" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+    </layout>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Python 3 and logging fixes&#10;&#10;Small changes to enable use of Python 3&#10;Changed calls to logging to calls to logger to allow other&#10;code to actually see the logged messages from this code." />
+    <MESSAGE value="Added function to MDA2HDF5_Multi to convert directory.&#10;&#10;Function fconvert_directory now will convert every MDA file&#10;in the given directory (default cwd) to HDF5." />
+    <option name="LAST_COMMIT_MESSAGE" value="Added function to MDA2HDF5_Multi to convert directory.&#10;&#10;Function fconvert_directory now will convert every MDA file&#10;in the given directory (default cwd) to HDF5." />
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/Library/ArrayBinModule.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Library/Time_Resolved_Processing_Cython.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="500">
+          <caret line="215" column="17" selection-start-line="215" selection-start-column="12" selection-end-line="215" selection-end-column="17" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Library/Time_Averaged_Initial_Process_Refactored.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="3450">
+          <caret line="230" column="41" selection-start-line="230" selection-start-column="41" selection-end-line="230" selection-end-column="41" />
+          <folding>
+            <element signature="e#1079#1090#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Library/MDA2HDF5_Multi.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="796">
+          <caret line="331" column="14" lean-forward="true" selection-start-line="331" selection-start-column="14" selection-end-line="331" selection-end-column="14" />
+          <folding>
+            <element signature="e#1222#1233#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+  </component>
+</project>

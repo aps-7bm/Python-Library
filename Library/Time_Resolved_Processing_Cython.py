@@ -30,7 +30,6 @@ import readdatagrabber as rdg
 import h5py
 import ALK_Utilities as ALK
 import multiprocessing
-from __builtin__ import TypeError
 import os.path
 import logging
 
@@ -305,7 +304,7 @@ def fparse_dictionary_numeric_string(input_dict):
         except ValueError:
             string_output.append(key)
         except TypeError:
-            logging.error("Problem parsing dictionary: value = " + str(value))
+            logger.error("Problem parsing dictionary: value = " + str(value))
             raise TypeError
     #Find the maximum length of a string
     max_string_len = max([len(x) for x in string_output])
@@ -326,19 +325,19 @@ def fcreate_datasets_coord_header(hdf_group,coord_header,max_replicates,num_loca
     if replicated:
         for numeric_key in numeric_header_keys:
             hdf_group.create_dataset(numeric_key,shape=(num_locations,max_replicates),dtype=write_datatype)
-            logging.info("Created HDF5 group for numerical header dataset " + numeric_key)
+            logger.info("Created HDF5 group for numerical header dataset " + numeric_key)
         #Do the same for coordinate header values that are strings
         for string_key in string_header_keys:
             hdf_group.create_dataset(string_key,shape=(num_locations,max_replicates),dtype=dtype_string)
-            logging.info("Created HDF5 group for string header dataset " + string_key)
+            logger.info("Created HDF5 group for string header dataset " + string_key)
     else:
         for numeric_key in numeric_header_keys:
             hdf_group.create_dataset(numeric_key,shape=(num_locations,),dtype=write_datatype)
-            logging.info("Created HDF5 group for numerical header dataset " + numeric_key)
+            logger.info("Created HDF5 group for numerical header dataset " + numeric_key)
         #Do the same for coordinate header values that are strings
         for string_key in string_header_keys:
             hdf_group.create_dataset(string_key,shape=(num_locations,),dtype=dtype_string)
-            logging.info("Created HDF5 group for string header dataset " + string_key)
+            logger.info("Created HDF5 group for string header dataset " + string_key)
     return numeric_header_keys, string_header_keys
 
 def fconvert_to_hdf5_multiprocess(file_num,directory=None,write_filename=None):
