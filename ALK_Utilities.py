@@ -58,6 +58,9 @@ def fcreate_filename_list(file_nums,filename_prefix='7bmb1_',filename_suffix='.m
     and makes a list of the file names.
     '''
     print(path)
+    #If the path doesn't end in a /, add one.
+    if path[-1] != '/':
+        path = path + '/'
     filename_list = []
     #Loop through the input string numbers, converting first to int, then to
     #correct number of digits as a string.
