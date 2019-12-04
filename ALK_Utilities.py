@@ -45,7 +45,7 @@ def fcreate_filename(file_num,filename_prefix='7bmb1_',filename_suffix='.mda',
                     digits=4):
     '''Make a filename with a number using a fixed number of digits.
     '''
-    if isinstance(file_num,(int,long)):
+    if isinstance(file_num,(int)):
         format_string = '{0:0'+str(digits)+'d}'
         return filename_prefix+format_string.format(file_num)+filename_suffix
     else:
