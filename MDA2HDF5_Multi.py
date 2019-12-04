@@ -22,6 +22,7 @@ February 23, 2018: refactor to better handle multidimensional scans, Python 3.  
 import h5py
 import xdrlib
 import numpy as np
+import os
 import os.path
 import logging
 import glob
@@ -276,7 +277,7 @@ def fcheck_directories(input_MDA, MDA_directory, HDF_directory):
     # If the MDA directory isn't specified, assume it's the current directory.
     if not MDA_directory:
         logger.info('No MDA_directory given.  Setting to current working directory.')
-        MDA_directory = os.path.getcwd()
+        MDA_directory = os.getcwd()
     # If there is no HDF_directory, make it the same as the MDA_directory.
     if not HDF_directory:
         logger.info('Setting the HDF file directory to ' + MDA_directory)
