@@ -19,13 +19,14 @@ import h5py
 import sys
 import numpy as np
 import multiprocessing
+from pathlib import Path
 
 #Set module attributes
 dg_filename_prefix='Scan_'
 dg_filename_suffix='.dat'
 hdf_filename = None
 digits=4
-file_path="/data/Data/SprayData/Cycle_2013_3/ISU/"
+file_path=Path.cwd().as_posix() + '/'
 location_keys = ("X","Y")
 convert_volts=True
 processors=3
