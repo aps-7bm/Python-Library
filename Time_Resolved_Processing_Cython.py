@@ -434,7 +434,7 @@ def fprocess_coordinate(coordinate,hdf_group,numeric_keys,string_keys,location_n
             #Write string datasets for string header data
             for string_key in string_keys:
                 if string_key in coordinate.coordinate_header:
-                    hdf_group[string_key][location_num,replicate] = str(coordinate.coordinate_header[string_key])
+                    hdf_group[string_key][location_num,replicate] = str(coordinate.coordinate_header[string_key]).encode('ascii')
         else:
             hdf_group[signal_name][location_num,:max_length] = final_data[:max_length]
         #Write numeric values from headers
@@ -444,7 +444,7 @@ def fprocess_coordinate(coordinate,hdf_group,numeric_keys,string_keys,location_n
         #Write string datasets for string header data
         for string_key in string_keys:
             if string_key in coordinate.coordinate_header:
-                hdf_group[string_key][location_num] = str(coordinate.coordinate_header[string_key])
+                hdf_group[string_key][location_num] = str(coordinate.coordinate_header[string_key]).encode('ascii')
 
 
 def fbatch_conversion_multiprocess(file_nums):

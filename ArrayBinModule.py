@@ -130,9 +130,11 @@ def fbin_signal_fixed_time(input_array,delta_t,pulse_time=None,repeat_num=None,s
     #Compute the number of points (float) per bin
     pulse_duration_points = pulse_time / delta_t
     #Compute the start point for the integration
-    start_point = np.rint(start_time / delta_t)
+    start_point = np.rint(start_time / delta_t).astype(np.int)
     #Perform integration with Cython code
     output_data = arc.fbin_array(input_array[start_point:],pulse_duration_points)
+    #Divide the output data by the pulse duration to get an average voltage back
+    output_data = output_data / pulse_duration_points
     #Attempt to remove the impact of bunch charge variations.
     if repeat_num > 1:
         output_data = fremove_bunch_charge_variations(output_data,repeat_num)
